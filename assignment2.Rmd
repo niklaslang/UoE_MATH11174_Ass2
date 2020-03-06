@@ -1,0 +1,109 @@
+# Assignment 2
+## Biomedical Data Science
+## B159640
+
+This Rmarkdown document provides answers, tables and graphs for the problems 1-4 and the R code used to obtain them. It is recommended to knit the Rmarkdown to HTML to obtain the intended formatting.
+
+### Problem 1
+
+Loading datasets `lipids.txt` and `lipid-classes.txt` required for problem 1
+```{r}
+# load library to work with data tables (also for all following problems)
+library(data.table)
+
+# import file and look up files
+lipids.dt <- fread("lipids.txt", stringsAsFactors = TRUE)
+lipid.classes.dt <- fread("lipid-classes.txt", stringsAsFactors = TRUE)
+```
+
+#### Problem 1 (a)
+
+Using the lipid-class lookup table `lipid.classes.dt` to determine the lipid classes
+of the lipid species listed `lipids.dt`, then adding a new lipid class colum to `lipids.dt`: 
+
+Writing a function to classify the lipids in a given data table.
+It accepts as input a data table `lipid.table`, a string `lipid.species.col` that specifies the column of `lipid.table` in which the lipid species are stored and a vector `lipid.classes`:
+```{r}
+classify.lipids <- function(lipid.table, lipid.species.col, lipid.classes){
+  
+  # add  class colum to lipid.table
+  lipid.table[, lipid.class := NA]
+  
+  # loop over over all lipid classes
+  
+  for(lipid in lipid.classes){
+    
+    # create regex that finds all lipid class identifiers
+    regex <- paste0("(\\s|^)[", 
+                    toupper(substr(lipid,1,1)),
+                    tolower(substr(lipid,1,1)),
+                    "](",
+                    toupper(substr(lipid,2,nchar(lipid))),
+                    "|",
+                    tolower(substr(lipid,2,nchar(lipid))),
+                    ")(\\s|$)")
+  
+    # add new col lipid.class to lipid.dt
+    
+    lipid.species <- paste0(lipid.table, "$" , lipid.species.col)
+    lipid.table[, lipid.class := ifelse(grepl(regex, lipid.species), lipid, lipid.class)]
+  }
+}
+```
+
+Classifying the lipids:
+```{r}
+classify.lipids(lipids.dt, "lipid.species" , lipid.classes.dt$CE)
+```
+
+Checking the results:
+```{r}
+head(lipids.dt, n = 15)
+```
+
+Ooops, the function fails to classify lipids species containing the label "CE".
+There are two possible reasons for this:
+
+* the label "CE" and "Cer" tag Cholesterylester
+* the label "CE" is the identifier of an ester not listed in `lipid.classed.dt`
+
+A quick google search leads to the [LIPID MAPS® Lipidomics Gateway website](https://www.lipidmaps.org/tools/ms/lm_mass_form.php)
+which provides access to lipid nomenclature, databases, tools, protocols and many more to serve the international lipid research community.
+Here, we learn that "CE" is the identifier for lipids belonging to the class Cholesterylester.
+Hence, we add this label to `lipid.classes.dt`:
+```{r}
+lipid.classes.dt <- rbind(lipid.classes.dt, list("CE", "Cholesterylesters"))
+```
+
+Rerunning the classification function:
+```{r}
+classify.lipids(lipids.dt, "lipid.species" , lipid.classes.dt$CE)
+```
+
+Checking the results (again):
+```{r}
+head(lipids.dt, n = 15)
+```
+
+Merging the data tables and counting the number of lipids that fall in each class
+```{r}
+results.dt <- merge(lipids.dt, lipid.classes.dt, 
+                    by.x = "lipid.class", 
+                    by.y = "CE" )
+
+table(results.dt$`Cholesterol esters`)
+```
+
+#### Problem 1 (b)
+
+#### Problem (c)
+
+#### Problem (d)
+
+### Problem 1
+
+### Problem 2
+
+### Problem 3
+
+### Problem 4
