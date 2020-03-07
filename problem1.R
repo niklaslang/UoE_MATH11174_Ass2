@@ -60,7 +60,6 @@ results.dt <- merge(lipids.dt, lipid.classes.dt,
 # Count the number of lipids that fall in each class
 table(results.dt$`Cholesterol esters`)
   
-
 # alternative: just one for loop that has to be rerun...
 
 lipids.dt[, lipid.class := NA]
@@ -81,3 +80,39 @@ for(lipid in lipid.classes.dt$CE){
     # add new col lipid.class to lipid.dt
     lipids.dt[, lipid.class := ifelse(grepl(regex, lipids.dt$lipid.species), lipid, lipid.class)]
 }
+
+### (b) ###
+
+# Computing the Wald test statistic for each lipid species
+
+lipids.dt[, "wald.test" := round((oddsratio-1)/se,3)]
+
+# Assuming that there were 288 patients in the dataset, deriving a p-value for each lipid species 
+# using the t distribution and append them to the results.dt data table
+
+# t.distn with n=288???
+
+lipids.dt[, "p.value(t-distn)" := signif(1-(pt(abs(wald.test), 277)-pt(-abs(wald.test), 277)),3)]
+
+# Repeating the computation of the p-values using the normal distribution (hint: you’ll need to use the pnorm() function)
+
+lipids.dt[, "p.value(n-distn)" := signif(1-(pnorm(abs(wald.test))-pnorm(-abs(wald.test))),3)]
+
+# Providing some evidence to justify if the normal approximation is acceptable in this instance
+
+hist(lipids.dt$wald.test, 
+     freq=F,
+     breaks = 16,
+     main = "Distribution of Wald test statistic",
+     xlab = "Wald test statistic",
+     ylab = "Frequency")
+
+lines(density(lipids.dt$wald.test), col="red")
+
+lines(seq(-8, 8, by=.05), 
+      dnorm(seq(-8, 8, by=.05), mean(lipids.dt$wald.test), sd(lipids.dt$wald.test)),
+      col="blue")
+
+legend("topright", c("observed density", "normal density"), col = c("red","blue"), lty = c(1,1))
+
+### (c) ###

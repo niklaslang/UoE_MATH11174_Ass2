@@ -96,6 +96,42 @@ table(results.dt$`Cholesterol esters`)
 
 #### Problem 1 (b)
 
+Computing the wald test statistic for each lipid species:
+```{r}
+lipids.dt[, "wald.test" := round((oddsratio-1)/se,3)]
+```
+
+Computing a p-value for each lipid species using the t distribution and append them to `results.dt`:
+(Assuming that there were 288 patients in the dataset)
+```{r}
+lipids.dt[, "p.value(t-distn)" := signif(1-(pt(abs(wald.test), 277)-pt(-abs(wald.test), 277)),3)]
+```
+
+Computing a p-value for each lipid species using the normal distribution and append them to `results.dt`:
+```{r}
+lipids.dt[, "p.value(n-distn)" := signif(1-(pnorm(abs(wald.test))-pnorm(-abs(wald.test))),3)]
+```
+
+Providing some evidence to justify if the normal approximation is acceptable in this instance:
+```{r}
+hist(lipids.dt$wald.test, 
+     breaks = 12,
+     freq=F,
+     main = "Distribution of Wald test statistic",
+     xlab = "Wald test statistic",
+     ylab = "Frequency")
+
+lines(density(lipids.dt$wald.test), col="red")
+
+lines(seq(-8, 8, by=.05), 
+      dnorm(seq(-8, 8, by=.05), mean(lipids.dt$wald.test), sd(lipids.dt$wald.test)),
+      col="blue")
+
+legend("topright", c("observed density", "normal density"), col = c("red","blue"), lty = c(1,1))
+```
+
+Comparing the observed distribution with a normal distribution, it can be stated that the observed distribution deviates from the normal distn due to a higher leftwards-shifted peak and positive skewedness. However, the normal distribution is still acceptable as a rough approximation since we only care about the extreme values (tails or the distn) when computing a p-value and evaluating whether it is above or below a certain threshold (e.g. 0.05 or 0.01).
+
 #### Problem (c)
 
 #### Problem (d)
