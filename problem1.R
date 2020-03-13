@@ -231,3 +231,12 @@ legend("topleft", c("FWER < 5%", "FWER ≥ 5%", "FDR < 1%", "FDR ≥ 1%"),
        lty = c(1,1,NA,NA),
        pch = c(NA,NA,2,1))
 
+#### (f) ###
+
+holm.bonferroni(results.dt, 0.05)
+benjamini.hochberg(results.dt, 0.05)
+
+fwer.dt <- holm.bonferroni(results.dt, 0.05)
+fdr.dt <- benjamini.hochberg(results.dt, 0.05)
+
+intersect(fwer.dt$lipid.species, fdr.dt$lipid.species)

@@ -179,12 +179,6 @@ holm.bonferroni <- function(results.dt, alpha=0.05){
 }
 ```
 
-Creating a data table `lipids.results.dt` that only contains the lipid species tested and their corresponding p-values (t-distn) and then applying the `holm.bonferroni()` function to it:
-```{r}
-lipids.hypotheses.dt <- results.dt[,c('lipid.species','p.value(t-distn)')]
-holm.bonferroni(lipids.hypotheses.dt, 0.05) # significance level alpha = 0.05
-```
-
 #### Problem (d)
 
 Implementing a similiar function `benjamini.hochberg(results.dt, q)` that takes as input an data.table containing the hypotheses tested and corresponding p-values (`results.dt`) and and a false discovery rate `q`.
@@ -227,11 +221,6 @@ benjamini.hochberg <- function(results.dt, q=0.05){
 }
 ``` 
 
-Applying the `benjamini.hochberg()` function to `lipids.results.dt`:
-```{r}
-benjamini.hochberg(lipids.hypotheses.dt, 0.05)
-```
-
 #### Problem 1 (e)
 
 Producing a volcano plot using a different 
@@ -239,9 +228,14 @@ Producing a volcano plot using a different
 * colour for the lipid species that are significant after controlling for the family-wise error rate at α = 0.05 
 * symbol to highlight the lipid species that are considered significant according to the Benjamini-Hochberg procedure at a false discovery rate of 1%
 ```{r}
+# creating a data table `lipids.results.dt` that only contains the lipid species tested and their corresponding p-values (t-distn)
+lipids.hypotheses.dt <- results.dt[,c('lipid.species','p.value(t-distn)')]
+
+# determining significant subsets of lipid species according to both methods at given thresholds
 fwer.dt <- holm.bonferroni(lipids.hypotheses.dt, 0.05)
 fdr.dt <- benjamini.hochberg(lipids.hypotheses.dt, 0.01)
 
+#plotting results
 plot(log(results.dt$oddsratio), -log10(results.dt$`p.value(t-distn)`), 
      main="Volcano plot",
      xlab="log Odds Ratio", 
@@ -252,6 +246,7 @@ plot(log(results.dt$oddsratio), -log10(results.dt$`p.value(t-distn)`),
      xlim=c(-1,1),
      ylim=c(0,14))
 
+# adding legend
 legend("topleft", c("FWER < 5%", "FWER ≥ 5%", "FDR < 1%", "FDR ≥ 1%"), 
        col = c("#FFB900FF","#008EFFFF", "grey", "grey"),
        lwd = c(3,3,1,1),
@@ -259,7 +254,24 @@ legend("topleft", c("FWER < 5%", "FWER ≥ 5%", "FDR < 1%", "FDR ≥ 1%"),
        pch = c(NA,NA,2,1))
 ```
 
-### (d) ###
+#### Problem 1 (f)
+
+Applying the `holm.bonferroni()` function to data table `lipids.results.dt` in order to determine the significant subsets of lipid species according to Holm-Bonferroni method:
+```{r}
+holm.bonferroni(lipids.hypotheses.dt, 0.05) # significance level alpha = 0.05
+```
+
+Applying the `benjamini.hochberg()` function in order to determine the significant subsets of lipid species according to the Benjamini-Hochberg procedure:
+```{r}
+benjamini.hochberg(lipids.hypotheses.dt, 0.05)
+```
+
+Determining the subset of lipid species that are significant according to both the Holm-Bonferroni method and the Benjamini-Hochberg procedure:
+```{r}
+fwer.dt <- holm.bonferroni(lipids.hypotheses.dt, 0.05)
+fdr.dt <- benjamini.hochberg(lipids.hypotheses.dt, 0.05)
+intersect(fwer.dt$hypothesis, fdr.dt$hypothesis)
+```
 
 ### Problem 2
 
