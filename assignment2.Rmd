@@ -98,38 +98,38 @@ table(results.dt$`Cholesterol esters`)
 
 Computing the wald test statistic for each lipid species:
 ```{r}
-lipids.dt[, "wald.test" := round((oddsratio-1)/se,3)]
+results.dt[, "wald.test" := round((oddsratio-1)/se,3)]
 ```
 
 Computing a p-value for each lipid species using the t distribution and append them to `results.dt`:
 (Assuming that there were 288 patients in the dataset)
 ```{r}
-lipids.dt[, "p.value(t-distn)" := signif(1-(pt(abs(wald.test), 277)-pt(-abs(wald.test), 277)),3)]
+results.dt[, "p.value(t-distn)" := signif(1-(pt(abs(wald.test), 277)-pt(-abs(wald.test), 277)),3)]
 ```
 
 Computing a p-value for each lipid species using the normal distribution and append them to `results.dt`:
 ```{r}
-lipids.dt[, "p.value(n-distn)" := signif(1-(pnorm(abs(wald.test))-pnorm(-abs(wald.test))),3)]
+results.dt[, "p.value(n-distn)" := signif(1-(pnorm(abs(wald.test))-pnorm(-abs(wald.test))),3)]
 ```
 
 Checking the results:
 ```{r}
-head(lipids.dt)
+head(results.dt)
 ```
 
 Providing some evidence to justify if the normal approximation is acceptable in this instance:
 ```{r}
-hist(lipids.dt$wald.test, 
+hist(results.dt$wald.test, 
      breaks = 12,
      freq=F,
      main = "Distribution of Wald test statistic",
      xlab = "Wald test statistic",
      ylab = "Frequency")
 
-lines(density(lipids.dt$wald.test), col="red")
+lines(density(results.dt$wald.test), col="red")
 
 lines(seq(-8, 8, by=.05), 
-      dnorm(seq(-8, 8, by=.05), mean(lipids.dt$wald.test), sd(lipids.dt$wald.test)),
+      dnorm(seq(-8, 8, by=.05), mean(results.dt$wald.test), sd(results.dt$wald.test)),
       col="blue")
 
 legend("topright", c("observed density", "normal density"), col = c("red","blue"), lty = c(1,1))
@@ -156,7 +156,7 @@ holm.bonferroni <- function(results.dt, alpha=0.05){
   k <- 1
   
   # loop over all p-values
-  for (p.k in lipids.results.dt$p.value){
+  for (p.k in results.dt$p.value){
     
     # reject yes/no?
     if(p.k < alpha/(m+1-k)){
@@ -181,8 +181,8 @@ holm.bonferroni <- function(results.dt, alpha=0.05){
 
 Creating a data table `lipids.results.dt` that only contains the lipid species tested and their corresponding p-values (t-distn) and then applying the `holm.bonferroni()` function to it:
 ```{r}
-lipids.results.dt <- lipids.dt[,c('lipid.species','p.value(t-distn)')]
-holm.bonferroni(lipids.results.dt, 0.05) # significance level alpha = 0.05
+lipids.hypotheses.dt <- results.dt[,c('lipid.species','p.value(t-distn)')]
+holm.bonferroni(lipids.hypotheses.dt, 0.05) # significance level alpha = 0.05
 ```
 
 #### Problem (d)
@@ -229,10 +229,37 @@ benjamini.hochberg <- function(results.dt, q=0.05){
 
 Applying the `benjamini.hochberg()` function to `lipids.results.dt`:
 ```{r}
-benjamini.hochberg(lipids.results.dt, 0.05)
+benjamini.hochberg(lipids.hypotheses.dt, 0.05)
 ```
 
 #### Problem 1 (e)
+
+Producing a volcano plot using a different 
+
+* colour for the lipid species that are significant after controlling for the family-wise error rate at α = 0.05 
+* symbol to highlight the lipid species that are considered significant according to the Benjamini-Hochberg procedure at a false discovery rate of 1%
+```{r}
+fwer.dt <- holm.bonferroni(lipids.hypotheses.dt, 0.05)
+fdr.dt <- benjamini.hochberg(lipids.hypotheses.dt, 0.01)
+
+plot(log(results.dt$oddsratio), -log10(results.dt$`p.value(t-distn)`), 
+     main="Volcano plot",
+     xlab="log Odds Ratio", 
+     ylab="-log10(p-value)", 
+     col=ifelse(results.dt$`p.value(t-distn)` %in% fwer.dt$p.value , "#FFB900FF","#008EFFFF"),
+     pch=ifelse(results.dt$`p.value(t-distn)` %in% fdr.dt$p.value, 17, 19),
+     cex=ifelse((results.dt$`p.value(t-distn)` %in% fdr.dt$p.value | results.dt$`p.value(t-distn)` %in% fwer.dt$`p.value(t-distn)`), 1.2, 0.5),
+     xlim=c(-1,1),
+     ylim=c(0,14))
+
+legend("topleft", c("FWER < 5%", "FWER ≥ 5%", "FDR < 1%", "FDR ≥ 1%"), 
+       col = c("#FFB900FF","#008EFFFF", "grey", "grey"),
+       lwd = c(3,3,1,1),
+       lty = c(1,1,NA,NA),
+       pch = c(NA,NA,2,1))
+```
+
+### (d) ###
 
 ### Problem 2
 

@@ -85,18 +85,18 @@ table(results.dt$`Cholesterol esters`)
 
 # Computing the Wald test statistic for each lipid species
 
-lipids.dt[, "wald.test" := round((oddsratio-1)/se,3)]
+results.dt[, "wald.test" := round((oddsratio-1)/se,3)]
 
 # Assuming that there were 288 patients in the dataset, deriving a p-value for each lipid species 
 # using the t distribution and append them to the results.dt data table
 
 # t.distn with n=288???
 
-lipids.dt[, "p.value(t-distn)" := signif(1-(pt(abs(wald.test), 277)-pt(-abs(wald.test), 277)),3)]
+results.dt[, "p.value(t-distn)" := signif(1-(pt(abs(wald.test), 277)-pt(-abs(wald.test), 277)),3)]
 
 # Repeating the computation of the p-values using the normal distribution (hint: you’ll need to use the pnorm() function)
 
-lipids.dt[, "p.value(n-distn)" := signif(1-(pnorm(abs(wald.test))-pnorm(-abs(wald.test))),3)]
+results.dt[, "p.value(n-distn)" := signif(1-(pnorm(abs(wald.test))-pnorm(-abs(wald.test))),3)]
 
 # Providing some evidence to justify if the normal approximation is acceptable in this instance
 
@@ -127,19 +127,16 @@ lipids.results.dt <- lipids.dt[,c('lipid.species','p.value(t-distn)')]
 
 holm.bonferroni <- function(results.dt, alpha=0.05){
   
-  # sorting p-values: assuming hypotheses are in the first column, p-values in the second column
-  # rename columns
-  colnames(results.dt) <- c('hypothesis','p.value')
-  # sort results by p-value
-  setorder(results.dt, cols = 'p.value')
+  # order p-values
+  setorder(results.dt, cols = 'p.value(t-distn)')
   
   # variables
   
-  m <- length(results.dt$p.value)
+  m <- length(results.dt$`p.value(t-distn)`)
   k <- 1
   
   # loop over all p-values
-  for (p.k in results.dt$p.value){
+  for (p.k in results.dt$`p.value(t-distn)`){
     
     # reject yes/no?
     if(p.k < alpha/(m+1-k)){
@@ -152,14 +149,16 @@ holm.bonferroni <- function(results.dt, alpha=0.05){
   }
 
   # subset output data table
-  fwer.results.dt <- results.dt[1:k-1,]
+  fwer.results.dt <- results.dt[1:k-1,c('lipid.species','p.value(t-distn)')]
   
   # order output data table
-  setorder(fwer.results.dt, cols = 'p.value')
+  setorder(fwer.results.dt, cols = 'p.value(t-distn)')
   
   # return result
   return(fwer.results.dt)
 }
+
+holm.bonferroni(results.dt)
 
 ### (d) ###
 
@@ -171,19 +170,16 @@ holm.bonferroni <- function(results.dt, alpha=0.05){
 
 benjamini.hochberg <- function(results.dt, q=0.05){
   
-  # sorting p-values: assuming hypotheses are in the first column, p-values in the second column
-  # rename columns
-  colnames(results.dt) <- c('hypothesis','p.value')
   # sort results by p-value
-  setorder(results.dt, cols = 'p.value')
+  setorder(results.dt, cols = 'p.value(t-distn)')
   
   # variables
   
-  m <- length(results.dt$p.value)
+  m <- length(results.dt$`p.value(t-distn)`)
   k <- 1
   
   # loop over all p-values
-  for (p.k in results.dt$p.value){
+  for (p.k in results.dt$`p.value(t-distn)`){
     
     # reject yes/no?
     if(p.k < (k/m*q)){
@@ -196,15 +192,42 @@ benjamini.hochberg <- function(results.dt, q=0.05){
   }
   
   # subset output data table
-  fdr.results.dt <- results.dt[1:k-1,]
+  fdr.results.dt <- results.dt[1:k-1,c('lipid.species','p.value(t-distn)')]
   
   # order output data table
-  setorder(fdr.results.dt, cols = 'p.value')
+  setorder(fdr.results.dt, cols = 'p.value(t-distn)')
   
   # return result
   return(fdr.results.dt)
 }
 
-benjamini.hochberg(lipids.results.dt, 0.05)
+benjamini.hochberg(results.dt, 0.05)
 
 ### (e) ###
+
+# Produce a volcano plot using a different colour for the lipid species 
+# that are significant after controlling for the family-wise error rate 
+# given a nominal significance threshold α = 0.05 
+# (it is not required to display names alongside the highlighted points). 
+# Use a different symbol to highlight the points that are considered significant 
+# according to the Benjamini-Hochberg procedure at a false discovery rate of 1%
+
+fwer.dt <- holm.bonferroni(results.dt, 0.05)
+fdr.dt <- benjamini.hochberg(results.dt, 0.01)
+
+plot(log(results.dt$oddsratio), -log10(results.dt$`p.value(t-distn)`), 
+     main="Volcano plot",
+     xlab="log Odds Ratio", 
+     ylab="-log10(p-value)", 
+     col=ifelse(results.dt$`p.value(t-distn)` %in% fwer.dt$`p.value(t-distn)` , "#FFB900FF","#008EFFFF"),
+     pch=ifelse(results.dt$`p.value(t-distn)` %in% fdr.dt$`p.value(t-distn)`, 17, 19),
+     cex=ifelse((results.dt$`p.value(t-distn)` %in% fdr.dt$`p.value(t-distn)` | results.dt$`p.value(t-distn)` %in% fwer.dt$`p.value(t-distn)`), 1.2, 0.5),
+     xlim=c(-1,1),
+     ylim=c(0,14))
+
+legend("topleft", c("FWER < 5%", "FWER ≥ 5%", "FDR < 1%", "FDR ≥ 1%"), 
+       col = c("#FFB900FF","#008EFFFF", "grey", "grey"),
+       lwd = c(3,3,1,1),
+       lty = c(1,1,NA,NA),
+       pch = c(NA,NA,2,1))
+
