@@ -139,7 +139,7 @@ holm.bonferroni <- function(results.dt, alpha=0.05){
   k <- 1
   
   # loop over all p-values
-  for (p.k in lipids.results.dt$p.value){
+  for (p.k in results.dt$p.value){
     
     # reject yes/no?
     if(p.k < alpha/(m+1-k)){
@@ -161,3 +161,50 @@ holm.bonferroni <- function(results.dt, alpha=0.05){
   return(fwer.results.dt)
 }
 
+### (d) ###
+
+# Implementing the following function: benjamini.hochberg <- function(results.dt, q)
+
+# that implements the Benjamini-Hochberg procedure and, 
+# given data table results.dt of hypotheses and p-values and a false discovery rate q, 
+# returns the subset of results.dt that are significant ordered by increasing p-value.
+
+benjamini.hochberg <- function(results.dt, q=0.05){
+  
+  # sorting p-values: assuming hypotheses are in the first column, p-values in the second column
+  # rename columns
+  colnames(results.dt) <- c('hypothesis','p.value')
+  # sort results by p-value
+  setorder(results.dt, cols = 'p.value')
+  
+  # variables
+  
+  m <- length(results.dt$p.value)
+  k <- 1
+  
+  # loop over all p-values
+  for (p.k in results.dt$p.value){
+    
+    # reject yes/no?
+    if(p.k < (k/m*q)){
+      #print(k)
+      #print(p.k)
+      k <- k + 1
+    }else{
+      break
+    }
+  }
+  
+  # subset output data table
+  fdr.results.dt <- results.dt[1:k-1,]
+  
+  # order output data table
+  setorder(fdr.results.dt, cols = 'p.value')
+  
+  # return result
+  return(fdr.results.dt)
+}
+
+benjamini.hochberg(lipids.results.dt, 0.05)
+
+### (e) ###
