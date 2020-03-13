@@ -62,24 +62,24 @@ table(results.dt$`Cholesterol esters`)
   
 # alternative: just one for loop that has to be rerun...
 
-lipids.dt[, lipid.class := NA]
-  
-for(lipid in lipid.classes.dt$CE){
-  
-    # create regex that finds all lipid class identifiers
-    
-    regex <- paste0("(\\s|^)[", 
-                    toupper(substr(lipid,1,1)),
-                    tolower(substr(lipid,1,1)),
-                    "](",
-                    toupper(substr(lipid,2,nchar(lipid))),
-                    "|",
-                    tolower(substr(lipid,2,nchar(lipid))),
-                    ")")
-    
-    # add new col lipid.class to lipid.dt
-    lipids.dt[, lipid.class := ifelse(grepl(regex, lipids.dt$lipid.species), lipid, lipid.class)]
-}
+#lipids.dt[, lipid.class := NA]
+#  
+#for(lipid in lipid.classes.dt$CE){
+#  
+#    # create regex that finds all lipid class identifiers
+#    
+#    regex <- paste0("(\\s|^)[", 
+#                    toupper(substr(lipid,1,1)),
+#                    tolower(substr(lipid,1,1)),
+#                    "](",
+#                    toupper(substr(lipid,2,nchar(lipid))),
+#                    "|",
+#                    tolower(substr(lipid,2,nchar(lipid))),
+#                    ")")
+#    
+#    # add new col lipid.class to lipid.dt
+#    lipids.dt[, lipid.class := ifelse(grepl(regex, lipids.dt$lipid.species), lipid, lipid.class)]
+#}
 
 ### (b) ###
 
@@ -116,3 +116,48 @@ lines(seq(-8, 8, by=.05),
 legend("topright", c("observed density", "normal density"), col = c("red","blue"), lty = c(1,1))
 
 ### (c) ###
+
+# Implementing the following function: holm.bonferroni <- function(results.dt, alpha)
+# where results.dt is a data table containing the hypotheses tested and corresponding p-values,
+# and alpha is the desired significance level
+# the function should return the subset of results.dt that are significant 
+# according to the Holm-Bonferroni method ordered by increasing p-value
+
+lipids.results.dt <- lipids.dt[,c('lipid.species','p.value(t-distn)')]
+
+holm.bonferroni <- function(results.dt, alpha=0.05){
+  
+  # sorting p-values: assuming hypotheses are in the first column, p-values in the second column
+  # rename columns
+  colnames(results.dt) <- c('hypothesis','p.value')
+  # sort results by p-value
+  setorder(results.dt, cols = 'p.value')
+  
+  # variables
+  
+  m <- length(results.dt$p.value)
+  k <- 1
+  
+  # loop over all p-values
+  for (p.k in lipids.results.dt$p.value){
+    
+    # reject yes/no?
+    if(p.k < alpha/(m+1-k)){
+      #print(k)
+      #print(p.k)
+      k <- k + 1
+    }else{
+      break
+    }
+  }
+
+  # subset output data table
+  fwer.results.dt <- results.dt[1:k-1,]
+  
+  # order output data table
+  setorder(fwer.results.dt, cols = 'p.value')
+  
+  # return result
+  return(fwer.results.dt)
+}
+

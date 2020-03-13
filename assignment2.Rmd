@@ -112,6 +112,11 @@ Computing a p-value for each lipid species using the normal distribution and app
 lipids.dt[, "p.value(n-distn)" := signif(1-(pnorm(abs(wald.test))-pnorm(-abs(wald.test))),3)]
 ```
 
+Checking the results:
+```{r}
+head(lipids.dt)
+```
+
 Providing some evidence to justify if the normal approximation is acceptable in this instance:
 ```{r}
 hist(lipids.dt$wald.test, 
@@ -134,7 +139,55 @@ Comparing the observed distribution with a normal distribution, it can be stated
 
 #### Problem (c)
 
+Implementing a function `holm.bonferroni <- function(results.dt, alpha)` that takes as input an data.table containing the hypotheses tested and corresponding p-values (`results.dt`) and the desired significance level (`alpha`).
+It computer the family-wise error rate for all hypotheses and returns `fwer.results.dt`a data table containing the subset of `results.dt` that are significant according to the Holm-Bonferroni method (fwer < `alpha`) ordered by increasing p-value.
+```{r}
+holm.bonferroni <- function(results.dt, alpha=0.05){
+  
+  # sorting p-values: assuming hypotheses are in the first column, p-values in the second column
+  # rename columns
+  colnames(results.dt) <- c('hypothesis','p.value')
+  # sort results by p-value
+  setorder(results.dt, cols = 'p.value')
+  
+  # variables
+  
+  m <- length(results.dt$p.value)
+  k <- 1
+  
+  # loop over all p-values
+  for (p.k in lipids.results.dt$p.value){
+    
+    # reject yes/no?
+    if(p.k < alpha/(m+1-k)){
+      #print(k)
+      #print(p.k)
+      k <- k + 1
+    }else{
+      break
+    }
+  }
+
+  # subset output data table
+  fwer.results.dt <- results.dt[1:k-1,]
+  
+  # order output data table
+  setorder(fwer.results.dt, cols = 'p.value')
+  
+  # return result
+  return(fwer.results.dt)
+}
+```
+
+Creating a data table `lipids.results.dt` that only contains the lipid species tested and their corresponding p-values (t-distn) and then applying the `holm.bonferroni()` function to it:
+```{r}
+lipids.results.dt <- lipids.dt[,c('lipid.species','p.value(t-distn)')]
+holm.bonferroni(lipids.results.dt, 0.05) # significance level alpha = 0.05
+```
+
 #### Problem (d)
+
+
 
 ### Problem 1
 
