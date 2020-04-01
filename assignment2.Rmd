@@ -324,46 +324,72 @@ y.bc.dt <- bc.dt$diagnosis
 Fit both a ridge regression model and a lasso model on the training set to diagnose the type of tumour from the 30 biomarkers
 ```{r}
 # ridge regression
-bc.fit.ridge <- glmnet(x.bc.dt, y.bc.dt, alpha=0, subset = train.idx, family="binomial")
-# LASSO
-bc.fit.lasso <- glmnet(x.bc.dt, y.bc.dt, subset = train.idx, family="binomial")
+bc.ridge <- glmnet(x.bc.dt, y.bc.dt, alpha=0, subset = train.idx, family="binomial")
+# lasso regression
+bc.lasso <- glmnet(x.bc.dt, y.bc.dt, subset = train.idx, family="binomial")
 ```
 
 Plotting the trajectories of the coefficients for various lambda λ:
 ```{r}
 par(mfrow=c(1,2), mar=c(4,4,5,2))
-plot(bc.fit.ridge, main="Ridge trajectories")
-plot(bc.fit.lasso, main="Lasso trajectories")
+plot(bc.ridge, main="Ridge trajectories")
+plot(bc.lasso, main="Lasso trajectories")
 ```
 
 For each model learning by cross-validation the penalty parameter λ that maximizes the AUC:
 ```{r}
 # ridge regression
-bc.fit.cv.ridge <- cv.glmnet(x.bc.dt, y.bc.dt, subset = train.idx, family="binomial", type.measure="auc", alpha=0)
-# LASSO
-bc.fit.cv.lasso <- cv.glmnet(x.bc.dt, y.bc.dt, subset = train.idx, family="binomial", type.measure="auc")
+bc.cv.ridge <- cv.glmnet(x.bc.dt, y.bc.dt, subset = train.idx, family="binomial", type.measure="auc", alpha=0)
+# lasso regression
+bc.cv.lasso <- cv.glmnet(x.bc.dt, y.bc.dt, subset = train.idx, family="binomial", type.measure="auc")
 ```
 
 Plotting the cross-validation curve:
 ```{r}
 par(mfrow=c(1,2), mar=c(4,4,5,2)) 
-plot(bc.fit.cv.ridge, main="Ridge")
-plot(bc.fit.cv.lasso, main="Lasso") 
+plot(bc.cv.ridge, main="Ridge")
+plot(bc.cv.lasso, main="Lasso") 
 ```
 
 Penalty parameters λ that maximizes the AUC
 ```{r}
 # ridge regression
-bc.fit.cv.ridge$lambda.min # this is admittedly counterintuitive
-# LASSO
-bc.fit.cv.lasso$lambda.min # this is admittedly counterintuitive
+bc.cv.ridge$lambda.min # this is admittedly counterintuitive
+# lasso regression
+bc.cv.lasso$lambda.min # this is admittedly counterintuitive
 ```
 
 #### Problem 2 (b)
 
+For both models fitted in (a) extract the AUCs corresponding to the optimal λ:
+
+There are two ways to this:
+
+1. the optimal λ maximzes the AUC, so we just extract the maximal AUC
 ```{r}
+# ridge
+max(bc.cv.ridge$cvm)
+# lasso
+max(bc.cv.lasso$cvm)
 ```
 
+2. extract the AUC from the field `cvm` of the fit corresponding to the optimal λ (`lamda.min`) from the field `lambda` of the fit:
+```{r}
+# ridge
+bc.cv.ridge$cvm[which(bc.cv.ridge$lambda == bc.cv.ridge$lambda.min)]
+# lasso
+bc.cv.lasso$cvm[which(bc.cv.lasso$lambda == bc.cv.lasso$lambda.min)]
+```
+
+Extracting the AUCs corresponding to all λ where the corresponding AUC is within 1 standard error of the maximum AUC.
+```{r}
+# ridge
+bc.cv.ridge$cvm[which(bc.cv.ridge$lambda <= bc.cv.ridge$lambda.1se)]
+# lasso
+bc.cv.lasso$cvm[which(bc.cv.lasso$lambda <= bc.cv.lasso$lambda.1se)]
+```
+
+#### Problem 2 (c)
 ### Problem 3
 
 ### Problem 4
