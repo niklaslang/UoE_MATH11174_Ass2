@@ -85,3 +85,73 @@ bc.cv.ridge$cvm[which(bc.cv.ridge$lambda <= bc.cv.ridge$lambda.1se)]
 # lasso
 bc.cv.lasso$cvm[which(bc.cv.lasso$lambda <= bc.cv.lasso$lambda.1se)]
 
+### (c) ###
+
+# Creating a data table for each model that reports 
+# the choice of λ, the corresponding model size and their training AUC
+# (3 significant digits for floating point values)
+
+# ridge
+
+bc.ridge.eval.dt <- data.table("λ" = signif(bc.cv.ridge$lambda,3),
+                            "ModelSize" = bc.cv.ridge$nzero,
+                            "AUC" = signif(bc.cv.ridge$cvm, 3))
+
+# lasso 
+
+bc.lasso.eval.dt <- data.table("λ" = signif(bc.cv.lasso$lambda,3),
+                            "ModelSize" = bc.cv.lasso$nzero,
+                            "AUC" = signif(bc.cv.lasso$cvm, 3))
+
+# plotting the results
+
+# ridge
+par(mfrow=c(1,3), mar=c(4,4,5,2))
+plot(bc.ridge.eval.dt$λ, bc.ridge.eval.dt$ModelSize, 
+     main = "Ridge",
+     xlab = 'λ',
+     ylab = 'Number of non-zero parameters',
+     col = "chartreuse3",
+     cex = .5,
+     ylim = c(0,30))
+plot(bc.ridge.eval.dt$λ, bc.ridge.eval.dt$AUC, 
+     main = "Ridge",
+     xlab = 'λ',
+     ylab = 'AUC',
+     col = "aquamarine4",
+     cex = .5,
+     ylim = c(.95, 1))
+plot(bc.ridge.eval.dt$ModelSize, bc.ridge.eval.dt$AUC, 
+     main = "Ridge",
+     xlab = 'Number of non-zero parameters',
+     ylab = 'AUC', 
+     col = "cadetblue3",
+     cex = .5,
+     xlim = c(0,30),
+     ylim = c(.95, 1))
+
+# lasso
+par(mfrow=c(1,3), mar=c(4,4,5,2))
+plot(bc.lasso.eval.dt$λ, bc.lasso.eval.dt$ModelSize, 
+     main = "Lasso",
+     xlab = 'λ',
+     ylab = 'Number of non-zero parameters',
+     col = "chartreuse3",
+     cex = .5,
+     ylim = c(0,30))
+plot(bc.lasso.eval.dt$λ, bc.lasso.eval.dt$AUC, 
+     main = "Lasso",
+     xlab = 'λ',
+     ylab = 'AUC',
+     col = "aquamarine4",
+     cex = .5,
+     ylim = c(.95, 1))
+plot(bc.lasso.eval.dt$ModelSize, bc.lasso.eval.dt$AUC, 
+     main = "Lasso",
+     xlab = 'Number of non-zero parameters',
+     ylab = 'AUC', 
+     col = "cadetblue3",
+     cex = .5,
+     ylim = c(.95, 1))
+
+# commenting on results
