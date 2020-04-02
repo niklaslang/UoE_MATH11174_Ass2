@@ -155,3 +155,35 @@ plot(bc.lasso.eval.dt$ModelSize, bc.lasso.eval.dt$AUC,
      ylim = c(.95, 1))
 
 # commenting on results
+
+### (d) ###
+
+# Performing backwards elimination (we’ll later refer to this as model B) 
+# on the same training set derived at point (a)
+
+library(MASS)
+
+bc.full.model <- glm(diagnosis ~ ., data=bc.dt[, !"id"], subset = train.idx, family="binomial")
+
+bc.el.back <- stepAIC(bc.full.model, direction="back")
+
+
+# Reporting the variables selected and their standardized regression coefficients 
+# in decreasing order of the absolute value of their standardized regression coefficient
+
+# compute standardized regression coefficients
+stdz.coef <- function(model){
+  b <- summary(model)$coef[-1,1]
+  sx <- sapply(model$model[-1], sd)
+  beta <-(3^(1/2))/pi * sx * b
+  return(beta)
+}
+
+bc.el.back.coefs <- data.table("variable" = rownames(coef(summary(bc.el.back)))[-1],
+                               "stdz.coef" = signif(stdz.coef(bc.el.back)))
+
+#bc.el.back.coefs <- bc.el.back.coefs[variable != "(Intercept)"]
+bc.el.back.coefs <- bc.el.back.coefs[order(-abs(bc.el.back.coefs$stdz.coef))]
+bc.el.back.coefs
+
+### (e) ###

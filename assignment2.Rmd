@@ -473,6 +473,47 @@ Plot C illustrates the "curse of dimensionality": reducing the number of explana
 
 #### Problem 2 (d)
 
+Performing backwards elimination on the same training set derived at point (a) and
+
+```{r}
+# load library for stepwise regression
+library(MASS)
+
+# fit logistic regression model with all the training split from (a)
+bc.full.model <- glm(diagnosis ~ ., data=bc.dt[, !"id"], subset = train.idx, family="binomial") # all variables except the patient id
+
+# perform stepwise regression (backward elimination)
+bc.el.back <- stepAIC(bc.full.model, direction="back")
+```
+
+Reporting the variables selected and their standardized regression coefficients 
+in decreasing order of the absolute value of their standardized regression coefficient
+
+```{r}
+# function to compute standardized regression coefficients
+stdz.coef <- function(model){
+  b <- summary(model)$coef[-1,1]
+  sx <- sapply(model$model[-1], sd)
+  beta <-(3^(1/2))/pi * sx * b
+  return(beta)
+}
+
+# create data table with variable and regression coefs
+bc.el.back.coefs <- data.table("variable" = rownames(coef(summary(bc.el.back)))[-1],
+                               "stdz.coef" = signif(stdz.coef(bc.el.back)))
+
+# remove intercept column
+#bc.el.back.coefs <- bc.el.back.coefs[variable != "(Intercept)"]
+
+# sort by absolute value of their standardized regression coefficient (in decreasing order)
+bc.el.back.coefs <- bc.el.back.coefs[order(-abs(bc.el.back.coefs$stdz.coef))]
+
+#show results
+bc.el.back.coefs
+```
+
+#### Problem 2 (e)
+
 ### Problem 3
 
 ### Problem 4
