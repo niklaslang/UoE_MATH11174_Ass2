@@ -572,15 +572,11 @@ library(pROC)
 bc.sel.back.pred <- predict(bc.sel.back, newdata=bc.dt[train.idx], type="response")
 bc.sel.forw.pred <- predict(bc.sel.forw, newdata=bc.dt[train.idx], type="response")
 
-# calculate AUCs
-roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred)
-roc(bc.dt$diagnosis[train.idx], bc.sel.forw.pred)
-
 # plot AUCs
 par(mfrow=c(1,1))
-roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs", col="brown2", lwd = 1.4)
-roc(bc.dt$diagnosis[train.idx], bc.sel.forw.pred, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.4)
-legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
+roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs", col="brown2", lwd = 1.3)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw.pred, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.3)
+legend("bottomright", c("backwards elimination: AUC = 0.992", "forward selection: AUC = 0.989"), fill = c("brown2","deepskyblue3"))
 ```
 
 #### Problem 2 (h)
@@ -609,7 +605,7 @@ legend("bottomright", c("backwards elimination: AUC = 0.991", "forward selection
        fill = c("#FF9900FF","#33FF00FF","#0066FFFF", "#FF0099FF"))
 ```
 
-Comparing the training AUCs  with the test AUCs and commenting on the overfitting of each model:
+Comparing the training AUCs with the test AUCs:
 ```{r}
 # predict the outcome of lasso and ridge for the observations in the training data set
 # (using the lambda at 1 standard error for the ridge and lasso models)
@@ -618,26 +614,25 @@ bc.lasso.pred <- predict(bc.cv.lasso, newx = x.bc.dt[train.idx,], type="response
 
 # plot training AUCc
 par(mfrow=c(1,1))
-roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs",
+roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs",
     col="#FF9900FF", lwd = 3)
-roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, 
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw.pred, plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#33FF00FF", lwd = 3)
 roc(bc.dt$diagnosis[train.idx], as.vector(bc.ridge.pred), plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#0066FFFF", lwd = 3)
 roc(bc.dt$diagnosis[train.idx], as.vector(bc.lasso.pred), plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#FF0099FF", lwd = 3)
 legend("bottomright", 
-       c("backwards elimination: AUC = 0.992", "forward selection: AUC = 0.972", "ridge regression: AUC = 0.978", "lasso regression: AUC = 0.992"), 
+       c("backwards elimination: AUC = 0.992", "forward selection: AUC = 0.989", "ridge regression: AUC = 0.972", "lasso regression: AUC = 0.978"), 
        fill = c("#FF9900FF","#33FF00FF","#0066FFFF", "#FF0099FF"))
 ```
 
-ridge: test > train
+Commenting on the overfitting of each model:
 
-lasso: test = train
-
-backwards elimination: test < train
-
-stepwise selection: test > train
+For ridge regression model the training AUC was smaller than the test AUC (0.978 vs. 0.988), meaning is fits the testing data better than the training data, hence its definetly not overfitted. 
+The Lasso regression model fits the training and the testing data equally well, which is reflected in the training and testing AUCs of 0.992 and 0.992, respectively.
+In contrast to backwards elimination, for which produces the training AUC was larger than the test AUC (0.992 vs. 0.991), that the model os overfitted to the training data (meaning that it reduces the bias of the model at the cost of a higher variance).
+For the forward selection model, however, the training AUCs is smaller than the testing AUCs, suggesting the model has a higher bias, but lower variance and hence is not overfitted.
 
 ### Problem 3
 
