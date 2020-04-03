@@ -539,6 +539,42 @@ When tracing back all step of stepAIC(), I found that stepAIC() only added varia
 
 #### Problem 2 (f)
 
+Comparing the goodness of fit of model `bc.sel.back`(backwards elimination) and model `bc.sel.forw` (forward selection):
+Given that the two models are not nested, we cannot use a likelihood ratio test.
+But we can still use the AIC and BIC:
+
+```{r}
+#AIC
+AIC(bc.sel.back)
+AIC(bc.sel.forw)
+```
+
+Since model `bc.sel.back` has lower AIC, so it’s tempting to say it's the better model.
+BUT:
+```{r}
+#BIC
+BIC(bc.sel.back)
+BIC(bc.sel.forw)
+```
+
+Model `bc.sel.forw` has lower BIC (which applies a stronger penalty for the use of additional predictors than AIC).
+So, let's plot the AUCs of the both models:
+
+```{r}
+library(pROC)
+par(mfrow=c(1,1))
+roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values)
+roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, col="brown2", lwd = 1.4)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.4)
+legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
+```
+
+Model `bc.sel.back` has the greater AUC, so it can be concluded it's the better model.
+
+However, it should be noted that these measure only compare, how well our models fit our training data.
+We do not yet know which model generalises better and performs better with the testing data.
+
 #### Problem 2 (g)
 
 #### Problem 2 (h)

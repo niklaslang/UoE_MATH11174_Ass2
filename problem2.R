@@ -208,3 +208,35 @@ bc.sel.forw.coefs
 # If so which?
 
 ### (f) ###
+
+# Comparing the goodness of fit of model `bc.sel.back`(backwards elimination) 
+# and model `bc.sel.forw` (forward selection) using the AIC
+
+# Given that the two models are not nested, we cannot use a likelihood ratio test, 
+# but we can still use AIC and BIC to compare the models:
+
+# AIC 
+# takes into account model complexity: 
+# the deviance of the model is penalised by twice the number of parameters estimated in the model
+AIC(bc.sel.back)
+AIC(bc.sel.forw)
+
+# Model bc.sel.back has lower AIC, so it’s the better model
+
+# BIC 
+# BIC applies a stronger penalty for the use of additional predictors
+BIC(bc.sel.back)
+BIC(bc.sel.forw)
+
+# in this case bc.sel.forw is better
+
+# AUC
+library(pROC)
+par(mfrow=c(1,1))
+roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values)
+roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, col="brown2", lwd = 1.4)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.4)
+legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
+
+### (g) ###
