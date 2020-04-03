@@ -562,7 +562,7 @@ Thi suggsest that `bc.sel.back` is the better model, but `bc.sel.forw` has fewer
 
 #### Problem 2 (g)
 
-Using model `bc.sel.back`` and model `bc.sel.forw` to predict observations in the training set, and from that compute the training AUC:
+Using model `bc.sel.back` and model `bc.sel.forw` to predict observations in the training set, and from that compute the training AUC:
 
 ```{r}
 # import package to compute and plot area under the curve

@@ -230,14 +230,14 @@ BIC(bc.sel.forw)
 
 # in this case bc.sel.forw is better
 
-# AUC
-library(pROC)
-par(mfrow=c(1,1))
-roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values)
-roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values)
-roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, col="brown2", lwd = 1.4)
-roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.4)
-legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
+## AUCs
+#library(pROC)
+#par(mfrow=c(1,1))
+#roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values)
+#roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values)
+#roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, col="brown2", lwd = 1.4)
+#roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.4)
+#legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
 
 ### (g) ###
 
@@ -254,5 +254,5 @@ roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axe
 roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.4)
 legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
 
-### (g) ###
+### (h) ###
 
