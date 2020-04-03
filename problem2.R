@@ -240,3 +240,19 @@ roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axe
 legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
 
 ### (g) ###
+
+# Using model `bc.sel.back`` and model `bc.sel.forw` to predict observations in the training set, and from that compute
+# the training AUC
+
+bc.sel.back.pred <- predict(bc.sel.back, newdata=bc.dt[train.idx], type="response")
+bc.sel.back.forw <- predict(bc.sel.forw, newdata=bc.dt[train.idx], type="response")
+
+par(mfrow=c(1,1))
+roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred)
+roc(bc.dt$diagnosis[train.idx], bc.sel.back.forw)
+roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs", col="brown2", lwd = 1.4)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.4)
+legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
+
+### (g) ###
+
