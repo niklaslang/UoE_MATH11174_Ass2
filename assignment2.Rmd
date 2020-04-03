@@ -473,7 +473,7 @@ Plot C illustrates the "curse of dimensionality": reducing the number of explana
 
 #### Problem 2 (d)
 
-Performing backwards elimination on the same training set derived at point (a) and
+Performing backwards elimination (model `bc.sel.back`) on the same training set derived at point (a) and
 
 ```{r}
 # load library for stepwise regression
@@ -483,12 +483,11 @@ library(MASS)
 bc.full.model <- glm(diagnosis ~ ., data=bc.dt[, !"id"], subset = train.idx, family="binomial") # all variables except the patient id
 
 # perform stepwise regression (backward elimination)
-bc.el.back <- stepAIC(bc.full.model, direction="back")
+bc.sel.back <- stepAIC(bc.full.model, direction="back")
 ```
 
 Reporting the variables selected and their standardized regression coefficients 
-in decreasing order of the absolute value of their standardized regression coefficient
-
+in decreasing order of the absolute value of their standardized regression coefficient:
 ```{r}
 # function to compute standardized regression coefficients
 stdz.coef <- function(model){
@@ -499,20 +498,50 @@ stdz.coef <- function(model){
 }
 
 # create data table with variable and regression coefs
-bc.el.back.coefs <- data.table("variable" = rownames(coef(summary(bc.el.back)))[-1],
-                               "stdz.coef" = signif(stdz.coef(bc.el.back)))
-
-# remove intercept column
-#bc.el.back.coefs <- bc.el.back.coefs[variable != "(Intercept)"]
+bc.sel.back.coefs <- data.table("variable" = rownames(coef(summary(bc.sel.back)))[-1],
+                               "stdz.coef" = signif(stdz.coef(bc.sel.back)))
 
 # sort by absolute value of their standardized regression coefficient (in decreasing order)
-bc.el.back.coefs <- bc.el.back.coefs[order(-abs(bc.el.back.coefs$stdz.coef))]
+bc.sel.back.coefs <- bc.sel.back.coefs[order(-abs(bc.sel.back.coefs$stdz.coef))]
 
 #show results
-bc.el.back.coefs
+bc.sel.back.coefs
 ```
 
 #### Problem 2 (e)
+
+Repeating the same analysis of point (d) by using stepwise selection (model `bc.sel.forw`) starting from the null model:
+```{r}
+# fit logistic regression model with all the training split from (a)
+bc.null.model <- glm(diagnosis ~ 1, data=bc.dt[, !"id"], subset = train.idx, family="binomial") # only the intercept
+
+# perform stepwise regression (forward selection)
+bc.sel.forw <- stepAIC(bc.null.model, scope=list(upper=bc.full.model),direction="forward")
+```
+
+Reporting the variables selected and their standardized regression coefficients 
+in decreasing order of the absolute value of their standardized regression coefficient:
+```{r}
+# create data table with variable and stdz coefs
+bc.sel.forw.coefs <- data.table("variable" = rownames(coef(summary(bc.sel.forw)))[-1],
+                                "stdz.coef" = signif(stdz.coef(bc.sel.forw)))
+
+# sort coefs by absolute value of their standardized regression coefficient (in decreasing order)
+bc.sel.forw.coefs <- bc.sel.forw.coefs[order(-abs(bc.sel.forw.coefs$stdz.coef))]
+
+# view results
+bc.sel.forw.coefs
+```
+
+**Did at any point in this procedure occur that a variable entered the model and was later on discarded? If so which?**
+
+When tracing back all step of stepAIC(), I found that stepAIC() only added variables, but never removed any. So I wonder whether this is possible to happen at all when using stepAIC().
+
+#### Problem 2 (f)
+
+#### Problem 2 (g)
+
+#### Problem 2 (h)
 
 ### Problem 3
 

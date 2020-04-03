@@ -165,7 +165,7 @@ library(MASS)
 
 bc.full.model <- glm(diagnosis ~ ., data=bc.dt[, !"id"], subset = train.idx, family="binomial")
 
-bc.el.back <- stepAIC(bc.full.model, direction="back")
+bc.sel.back <- stepAIC(bc.full.model, direction="back")
 
 
 # Reporting the variables selected and their standardized regression coefficients 
@@ -179,11 +179,32 @@ stdz.coef <- function(model){
   return(beta)
 }
 
-bc.el.back.coefs <- data.table("variable" = rownames(coef(summary(bc.el.back)))[-1],
-                               "stdz.coef" = signif(stdz.coef(bc.el.back)))
+bc.sel.back.coefs <- data.table("variable" = rownames(coef(summary(bc.sel.back)))[-1],
+                               "stdz.coef" = signif(stdz.coef(bc.sel.back)))
 
 #bc.el.back.coefs <- bc.el.back.coefs[variable != "(Intercept)"]
-bc.el.back.coefs <- bc.el.back.coefs[order(-abs(bc.el.back.coefs$stdz.coef))]
-bc.el.back.coefs
+bc.sel.back.coefs <- bc.sel.back.coefs[order(-abs(bc.sel.back.coefs$stdz.coef))]
+bc.sel.back.coefs
 
 ### (e) ###
+
+# Repeating the same analysis of point (d) by using stepwise selection (model S)
+# starting from the null model
+
+bc.null.model <- glm(diagnosis ~ 1, data=bc.dt[, !"id"], subset = train.idx, family="binomial")
+
+bc.sel.forw <- stepAIC(bc.null.model, scope=list(upper=bc.full.model),direction="forward")
+
+# Reporting the variables selected and their standardized regression coefficients 
+# in decreasing order of the absolute value of their standardized regression coefficient
+
+bc.sel.forw.coefs <- data.table("variable" = rownames(coef(summary(bc.sel.forw)))[-1],
+                                "stdz.coef" = signif(stdz.coef(bc.sel.forw)))
+
+bc.sel.forw.coefs <- bc.sel.forw.coefs[order(-abs(bc.sel.forw.coefs$stdz.coef))]
+bc.sel.forw.coefs
+
+# Did at any point in this procedure occur that a variable entered the model and was later on discarded? 
+# If so which?
+
+### (f) ###
