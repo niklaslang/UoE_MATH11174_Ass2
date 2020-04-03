@@ -245,14 +245,73 @@ BIC(bc.sel.forw)
 # the training AUC
 
 bc.sel.back.pred <- predict(bc.sel.back, newdata=bc.dt[train.idx], type="response")
-bc.sel.back.forw <- predict(bc.sel.forw, newdata=bc.dt[train.idx], type="response")
+bc.sel.forw.pred <- predict(bc.sel.forw, newdata=bc.dt[train.idx], type="response")
 
 par(mfrow=c(1,1))
 roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred)
-roc(bc.dt$diagnosis[train.idx], bc.sel.back.forw)
-roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs", col="brown2", lwd = 1.4)
-roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.4)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw.pred)
+roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs", col="brown2", lwd = 3)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 3)
 legend("bottomright", c("backwards elimination: AUC = 0.9916", "forward selection: AUC = 0.9891"), fill = c("brown2","deepskyblue3"))
 
 ### (h) ###
+
+# Using the four models to predict the outcome for the observations in the test set 
+# (use the lambda at 1 standard error for the penalised models)
+
+# predict the outcome for the observations in the test data set
+bc.sel.back.pred.obs <- predict(bc.sel.back, newdata=bc.dt[-train.idx,], type="response")
+bc.sel.forw.pred.obs <- predict(bc.sel.forw, newdata=bc.dt[-train.idx,], type="response")
+bc.ridge.pred.obs <- predict(bc.cv.ridge, newx = x.bc.dt[-train.idx,], type="response", s=bc.cv.ridge$lambda.1se)
+bc.lasso.pred.obs <- predict(bc.cv.lasso, newx = x.bc.dt[-train.idx,], type="response", s=bc.cv.lasso$lambda.1se)
+
+# Plotting the ROC curves of these models (on the same plot, using different colours) 
+# and reporting their test AUCs. 
+
+# compute test AUCs
+roc(bc.dt$diagnosis[-train.idx], bc.sel.back.pred.obs)
+roc(bc.dt$diagnosis[-train.idx], bc.sel.forw.pred.obs)
+roc(bc.dt$diagnosis[-train.idx], as.vector(bc.ridge.pred.obs))
+roc(bc.dt$diagnosis[-train.idx], as.vector(bc.lasso.pred.obs))
+
+# plot test AUCs
+par(mfrow=c(1,1))
+roc(bc.dt$diagnosis[-train.idx], bc.sel.back.pred.obs, plot=TRUE, legacy.axes=TRUE, main = "Test AUCs",
+    col="#FF9900FF", lwd = 3)
+roc(bc.dt$diagnosis[-train.idx], bc.sel.forw.pred.obs, plot=TRUE, legacy.axes=TRUE, 
+    add=TRUE, col="#33FF00FF", lwd = 3)
+roc(bc.dt$diagnosis[-train.idx], as.vector(bc.ridge.pred.obs), plot=TRUE, legacy.axes=TRUE, 
+    add=TRUE, col="#0066FFFF", lwd = 3)
+roc(bc.dt$diagnosis[-train.idx], as.vector(bc.lasso.pred.obs), plot=TRUE, legacy.axes=TRUE, 
+    add=TRUE, col="#FF0099FF", lwd = 3)
+legend("bottomright", c("backwards elimination: AUC = 0.991", "forward selection: AUC = 0.991", "ridge regression: AUC = 0.988", "lasso regression: AUC = 0.992"), 
+       fill = c("#FF9900FF","#33FF00FF","#0066FFFF", "#FF0099FF"))
+
+# Comparing the training AUCs obtained at points (b) and (g) with the test AUCs 
+# and commenting on the overfitting of each model
+
+# predict the outcome of lasso and ridge for the observations in the training data set
+bc.ridge.pred <- predict(bc.cv.ridge, newx = x.bc.dt[train.idx,], type="response", s=bc.cv.ridge$lambda.1se)
+bc.lasso.pred <- predict(bc.cv.lasso, newx = x.bc.dt[train.idx,], type="response", s=bc.cv.lasso$lambda.1se)
+
+# compute training AUCs
+roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw.pred)
+roc(bc.dt$diagnosis[train.idx], as.vector(bc.ridge.pred))
+roc(bc.dt$diagnosis[train.idx], as.vector(bc.lasso.pred))
+
+# plot training AUCc
+par(mfrow=c(1,1))
+roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs",
+    col="#FF9900FF", lwd = 3)
+roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, 
+    add=TRUE, col="#33FF00FF", lwd = 3)
+roc(bc.dt$diagnosis[train.idx], as.vector(bc.ridge.pred), plot=TRUE, legacy.axes=TRUE, 
+    add=TRUE, col="#0066FFFF", lwd = 3)
+roc(bc.dt$diagnosis[train.idx], as.vector(bc.lasso.pred), plot=TRUE, legacy.axes=TRUE, 
+    add=TRUE, col="#FF0099FF", lwd = 3)
+legend("bottomright", c("backwards elimination: AUC = 0.992", "forward selection: AUC = 0.972", "ridge regression: AUC = 0.978", "lasso regression: AUC = 0.992"), 
+       fill = c("#FF9900FF","#33FF00FF","#0066FFFF", "#FF0099FF"))
+
+
 
