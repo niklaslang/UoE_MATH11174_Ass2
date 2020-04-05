@@ -61,28 +61,22 @@ univ.glm.test <- function( data, outcome, order=FALSE){
     # fit logistic regression model
     log.regr <- glm(outcome ~ data[[snp]], family = "binomial")
     
-    # regression model summary
-    log.regr.summary <- coef(summary(log.regr))
-    
-    # extract and calculate values from summary
-    SNP <- colnames(data)[snp]
-    beta <- round(log.regr.summary[2,1], 3)
-    odds.ratio <- round(exp(log.regr.summary[2,1]), 3)
-    std.error <- round(log.regr.summary[2,2], 3)
-    p.value <- format(log.regr.summary[2,4], scientific = FALSE)
-    
-    # SNP summary statistics
-    snp.summary <- c(SNP, beta, odds.ratio, std.error, p.value)
+    # regression model summary with beta, std.error and p.value
+    log.regr.summary <- data.table(signif(coef(summary(log.regr)),3))[-1,-3] # exclude intercept and t-value
     
     # add SNP summary to output table
-    output <- rbind(output, snp.summary)
+    output <- rbind(output, log.regr.summary)
     
   }
 
-  output <- data.table(output)
+  # add column of SNP IDs
+  output <- cbind(snp.allele.dt$rsID, output)
   
   # add colnames to output table
-  colnames(output) <- c("SNP", "beta", "odds.ratio", "std.error", "p.value")
+  colnames(output) <- c("SNP","beta", "std.error", "p.value")
+  
+  # compute odds ratio
+  output[, odds.ratio := signif(exp(beta),3)]
   
   if(order == TRUE){
     
@@ -96,4 +90,41 @@ univ.glm.test <- function( data, outcome, order=FALSE){
 
 ### (c) ###
 
-univ.glm.test(gdm.dt[,!c("ID","sex","pheno")], gdm.dt$pheno, order = TRUE)
+# Using function `univ.glm.test()`,
+# running an association study for all the SNPs in `gdm.dt` against having gestational diabetes 
+# (column “pheno”). 
+
+gdm.snp.dt <- univ.glm.test(gdm.dt[,!c("ID","sex","pheno")], gdm.dt$pheno, order = TRUE)
+
+# For the SNP that is most strongly associated to increased risk of gestational diabetes 
+# and the one with most significant protective effect, 
+# reporting the summary statistics from the GWAS 
+# as well as the 95% and 99% confidence intervals on the odds ratio
+
+# SNP most strongly associated with gestational diabetes
+
+gdm.snp.dt[p.value == min(p.value)]
+
+beta1 <- gdm.snp.dt[beta == max(beta), beta]
+se1 <- gdm.snp.dt[beta == max(beta), std.error]
+
+# 95% CI
+round(exp(beta1 + 1.96 * se1 * c(-1, 1)), 3)
+
+# 99% CI
+round(exp(beta1 + 2.58 * se1 * c(-1, 1)), 3)
+
+# SNP with most significant protective effect
+
+gdm.snp.dt[odds.ratio == min(odds.ratio)]
+
+beta2 <- gdm.snp.dt[odds.ratio == min(odds.ratio), beta]
+se2 <- gdm.snp.dt[odds.ratio == min(odds.ratio), std.error]
+
+# 95% CI
+round(exp(beta2 + 1.96 * se2 * c(-1, 1)), 3)
+
+# 99% CI
+round(exp(beta2 + 2.58 * se2 * c(-1, 1)), 3)
+
+
