@@ -636,4 +636,53 @@ For the forward selection model, however, the training AUCs is smaller than the 
 
 ### Problem 3
 
+#### Problem 3 (a)
+
+Reading file `GDM.raw.txt` into a data table named `gdm.dt`, and storing rsID and coded allele in a separate data table calle `snp.allele.dt`
+
+```{r}
+# read file
+gdm.dt <- fread("GDM.raw.txt")
+
+# install package "stringr" if not installed already
+
+if(!"stringr" %in% rownames(installed.packages())) {
+  install.packages("stringr") # functions for making regex stuff super intuitive
+}
+
+library(stringr) # functions for intuitive working with regex
+
+# define regex
+rsID.regex <- "rs\\d+" # to capture rsID
+reference.allele.regex <- "[ACGT]$" # to capture the reference allele
+
+
+rsIDs <- str_extract(colnames(gdm.dt)[-c(1,2,3)], rsID.regex) # extract rsIDs (exclude colums 1-3: id, sex, pheno)
+reference.alleles <- str_extract(colnames(gdm.dt)[-c(1,2,3)], reference.allele.regex) # extract all reference alleles (exclude colums 1-3: id, sex, pheno)
+
+# store rsIDs and reference alleles in data table
+snp.allele.dt <- data.table( "rsID" = rsIDs,
+                             "reference.allele" = reference.alleles)
+
+# check results
+head(snp.allele.dt)
+```
+
+
+Imputing missing values in `gdm.dt`` according to SNP-wise average allele count:
+```{r}
+# check number of NAs
+table(is.na(gdm.dt))
+
+# SNP-wise imputation
+for (colnm in colnames(gdm.dt[,-1])) {
+  gdm.dt[[colnm]][is.na(gdm.dt[[colnm]])] <- mean(gdm.dt[[colnm]], na.rm = TRUE)
+}
+
+# check numbers of NAs
+table(is.na(gdm.dt))
+```
+
+#### Problem 3 (b)
+
 ### Problem 4
