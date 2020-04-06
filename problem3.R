@@ -18,7 +18,8 @@ reference.allele.regex <- "[ACGT]$"
 str_extract(colnames(gdm.dt)[-c(1,2,3)], rsID.regex)
 str_extract(colnames(gdm.dt)[-c(1,2,3)], reference.allele.regex)
 
-snp.allele.dt <- data.table( "rsID" = str_extract(colnames(gdm.dt)[-c(1,2,3)], rsID.regex),
+snp.allele.dt <- data.table( "snp.name" = colnames(gdm.dt)[-c(1,2,3)],
+                             "rsID" = str_extract(colnames(gdm.dt)[-c(1,2,3)], rsID.regex),
                              "reference.allele" = str_extract(colnames(gdm.dt)[-c(1,2,3)], reference.allele.regex))
 
 # Imputing missing values in `gdm.dt`` according to SNP-wise average allele count
@@ -70,7 +71,7 @@ univ.glm.test <- function( data, outcome, order=FALSE){
   }
 
   # add column of SNP IDs
-  output <- cbind(snp.allele.dt$rsID, output)
+  output <- cbind(snp.allele.dt$snp.name, output)
   
   # add colnames to output table
   colnames(output) <- c("snp","beta", "std.error", "p.value")
@@ -94,7 +95,7 @@ univ.glm.test <- function( data, outcome, order=FALSE){
 # running an association study for all the SNPs in `gdm.dt` against having gestational diabetes 
 # (column “pheno”). 
 
-gdm.snp.dt <- univ.glm.test(gdm.dt[,!c("ID","sex","pheno")], gdm.dt$pheno, order = TRUE)
+gdm.snp.dt <- univ.glm.test(gdm.dt[,!c("ID","sex","pheno")], gdm.dt$pheno)
 
 # For the SNP that is most strongly associated to increased risk of gestational diabetes 
 # and the one with most significant protective effect, 
@@ -133,20 +134,20 @@ round(exp(beta2 + 2.58 * se2 * c(-1, 1)), 3)
 
 gdm.annot.dt <- fread("GDM.annot.txt")
 
-gdm.gwas.dt <- merge(gdm.annot.dt, snp.allele.dt,
-                     by.x = "snp", by.y = "rsID")
+gdm.gwas.dt <- merge(snp.allele.dt, gdm.annot.dt,
+                     by.x = "rsID", by.y = "snp")
 
 gdm.gwas.dt <- merge(gdm.gwas.dt, gdm.snp.dt,
-                     by.x = "snp", by.y = "snp")
+                     by.x = "snp.name", by.y = "snp")
 
 gdm.gwas.dt[, pos := as.numeric(pos)]
 
 # reporting SNP name, effect allele, chromosome number and corresponding gene name
 # for all SNPs that have p-value < 10−4 
 
-hit.snp.dt <- gdm.gwas.dt[p.value < 10^-4]
+hit.snp.dt <- gdm.gwas.dt[p.value < 1e-4]
 
-hit.snp.dt[,c(1,5,2,4)]
+hit.snp.dt[,c("snp.name","reference.allele","chrom","gene")]
 
 # for all hit SNPs reporting all gene names that are within a 1Mb window from the SNP position on the same chromosome
 
@@ -158,3 +159,70 @@ gdm.gwas.dt[chrom == hit.snp.dt$chrom[2]][pos >= hit.snp.dt$pos[2] - 1000000 & p
 
 
 ### (e) ###
+
+# Building a weighted genetic risk score that includes all SNPs with p-value < 10−4,
+# a second score with all SNPs with p-value < 10−3, 
+# and a third score that only includes SNPs on the FTO gene 
+
+# ensure that the ordering of SNPs is respected
+gdm.gwas.dt <- gdm.gwas.dt[match(colnames(gdm.dt)[-c(1,2,3)], gdm.gwas.dt$snp.name),]
+stopifnot(colnames(gdm.dt)[-c(1,2,3)] == gdm.gwas.dt$snp.name)
+
+# score 1
+gdm1.snp <- gdm.gwas.dt[p.value < 1e-4]
+gdm1.grs <- gdm.dt[, .SD, .SDcols = gdm.gwas.dt[p.value < 1e-4]$snp.name]
+gdm1.weighted.grs <- as.matrix(gdm1.grs) %*% gdm1.snp$beta
+
+# score 2
+gdm2.snp <- gdm.gwas.dt[p.value < 1e-3]
+gdm2.grs <- gdm.dt[, .SD, .SDcols = gdm.gwas.dt[p.value < 1e-3]$snp.name]
+gdm2.weighted.grs <- as.matrix(gdm2.grs) %*% gdm2.snp$beta
+
+# score 3
+gdm3.snp <- gdm.gwas.dt[gene == "FTO"]
+gdm3.grs <- gdm.dt[, .SD, .SDcols = gdm.gwas.dt[gene == "FTO"]$snp.name]
+gdm3.weighted.grs <- as.matrix(gdm3.grs) %*% gdm3.snp$beta
+
+# adding the three scores as columns to the `gdm.dt`` data table
+
+gdm.dt$p4.score <- gdm1.weighted.grs
+gdm.dt$p3.score <- gdm2.weighted.grs
+gdm.dt$FTO.score <- gdm3.weighted.grs
+
+# fitting the three scores in separate logistic regression models to test their association 
+# with gestational diabetes, and for each report odds ratio, 95% confidence interval and p-value
+
+fit.score.model <- function(formula, data){
+  
+  log.regr <- glm(formula, data = data, family = "binomial")
+  
+  odds.ratio <- exp(coef(summary(log.regr))[2,1])
+  CI.lower <- exp(confint(log.regr)[2,1])
+  CI.upper <- exp(confint(log.regr)[2,2])
+  p.value <- coef(summary(log.regr))[2,4]
+  
+  gdm.grs.dt <- data.table(rbind(NULL, c(score, round(odds.ratio,3), round(CI.lower,3), round(CI.upper,3), signif(p.value,3))))
+  colnames(gdm.grs.dt) <- c("score","odds.ratio","2.5%","97.5%","p.value")
+  
+  return(gdm.grs.dt)
+}
+
+fit.score.model(pheno ~ p4.score, gdm.dt)
+fit.score.model(pheno ~ p3.score, gdm.dt)
+fit.score.model(pheno ~ FTO.score, gdm.dt)
+
+#
+
+p4.score.log.regr <- glm(pheno ~ p4.score, data = gdm.dt, family = "binomial")
+  
+p3.score.log.regr <- glm(pheno ~ p3.score, data = gdm.dt, family = "binomial")
+  
+FTO.score.log.regr <- glm(pheno ~ FTO.score, data = gdm.dt, family = "binomial")
+
+# 
+
+p4.odds <- exp(coef(summary(p4.score.log.regr))[2,1])
+p4.CI <- exp(confint(p4.score.log.regr)[2,])
+p4.p.value <- coef(summary(p4.score.log.regr))[2,4]
+
+
