@@ -725,7 +725,7 @@ univ.glm.test <- function( data, outcome, order=FALSE){
   output <- cbind(snp.allele.dt$rsID, output)
   
   # add colnames to output table
-  colnames(output) <- c("SNP","beta", "std.error", "p.value")
+  colnames(output) <- c("snp","beta", "std.error", "p.value")
   
   # compute odds ratio
   output[, odds.ratio := signif(exp(beta),3)]
@@ -785,5 +785,43 @@ round(exp(beta2 + 2.58 * se2 * c(-1, 1)), 3)
 ```
 
 #### Problem 3 (d)
+
+Merging the GWAS results with the table of gene names provided in file `GDM.annot.txt`
+```{r}
+# read GDM.annot.txt
+gdm.annot.dt <- fread("GDM.annot.txt")
+
+# merge with allele information
+gdm.gwas.dt <- merge(gdm.annot.dt, snp.allele.dt,
+                     by.x = "snp", by.y = "rsID")
+
+# merge GWAS results
+gdm.gwas.dt <- merge(gdm.gwas.dt, gdm.snp.dt,
+                     by.x = "snp", by.y = "snp")
+
+# convert pos column to numeric
+gdm.gwas.dt[, pos := as.numeric(pos)]
+```
+
+Reporting SNP name, effect allele, chromosome number and corresponding gene name for all SNPs that have p-value < 10^−4:
+```{r}
+# filter results by p-value
+hit.snp.dt <- gdm.gwas.dt[p.value < 10^-4]
+
+# select columns
+hit.snp.dt[,c(1,5,2,4)]
+```
+
+For all hit SNPs reporting all gene names that are within a 1Mb window from the SNP position on the same chromosome:
+```{r}
+# hit no.1
+gdm.gwas.dt[chrom == hit.snp.dt$chrom[1]][pos >= hit.snp.dt$pos[1] - 1000000 & pos <= hit.snp.dt$pos[1] + 1000000]$gene
+
+# hit.no.2
+gdm.gwas.dt[chrom == hit.snp.dt$chrom[2]][pos >= hit.snp.dt$pos[2] - 1000000 & pos <= hit.snp.dt$pos[2] + 1000000]$gene
+```
+
+#### Problem (e)
+
 
 ### Problem 4

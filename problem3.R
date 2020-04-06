@@ -73,7 +73,7 @@ univ.glm.test <- function( data, outcome, order=FALSE){
   output <- cbind(snp.allele.dt$rsID, output)
   
   # add colnames to output table
-  colnames(output) <- c("SNP","beta", "std.error", "p.value")
+  colnames(output) <- c("snp","beta", "std.error", "p.value")
   
   # compute odds ratio
   output[, odds.ratio := signif(exp(beta),3)]
@@ -127,4 +127,34 @@ round(exp(beta2 + 1.96 * se2 * c(-1, 1)), 3)
 # 99% CI
 round(exp(beta2 + 2.58 * se2 * c(-1, 1)), 3)
 
+### (d) ###
 
+# merging the GWAS results with the table of gene names provided in file `GDM.annot.txt`
+
+gdm.annot.dt <- fread("GDM.annot.txt")
+
+gdm.gwas.dt <- merge(gdm.annot.dt, snp.allele.dt,
+                     by.x = "snp", by.y = "rsID")
+
+gdm.gwas.dt <- merge(gdm.gwas.dt, gdm.snp.dt,
+                     by.x = "snp", by.y = "snp")
+
+gdm.gwas.dt[, pos := as.numeric(pos)]
+
+# reporting SNP name, effect allele, chromosome number and corresponding gene name
+# for all SNPs that have p-value < 10−4 
+
+hit.snp.dt <- gdm.gwas.dt[p.value < 10^-4]
+
+hit.snp.dt[,c(1,5,2,4)]
+
+# for all hit SNPs reporting all gene names that are within a 1Mb window from the SNP position on the same chromosome
+
+# hit no.1
+gdm.gwas.dt[chrom == hit.snp.dt$chrom[1]][pos >= hit.snp.dt$pos[1] - 1000000 & pos <= hit.snp.dt$pos[1] + 1000000]$gene
+
+# hit.no.2
+gdm.gwas.dt[chrom == hit.snp.dt$chrom[2]][pos >= hit.snp.dt$pos[2] - 1000000 & pos <= hit.snp.dt$pos[2] + 1000000]$gene
+
+
+### (e) ###
