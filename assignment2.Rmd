@@ -860,6 +860,15 @@ gdm.dt$FTO.score <- gdm3.weighted.grs
 
 Fitting the three scores in separate logistic regression models to test their association  with gestational diabetes:
 ```{r}
+# score 1: SNPs with p.value < 10^-4
+p4.score.log.regr <- glm(pheno ~ p4.score, data = gdm.dt, family = "binomial")
+# score 2: SNPs with p.value < 10^-3
+p3.score.log.regr <- glm(pheno ~ p3.score, data = gdm.dt, family = "binomial")
+# score 3: SNPs on the FTO gene
+FTO.score.log.regr <- glm(pheno ~ FTO.score, data = gdm.dt, family = "binomial")
+```
+
+```{r}
 # function to fit logistic regression models and calculate odds ratio, 95% CI l and p-value
 fit.score.model <- function(formula, data){
 
@@ -880,14 +889,30 @@ fit.score.model <- function(formula, data){
 }
 ```
 
-Fitting the three scores in separate logistic regression models and reporting odds ratio, 95% CI and p-value:
+Reporting odds ratio, 95% CI and p-value for each model/score:
 ```{r}
+# function to calculate odds ratio, 95% CI l and p-value for a logistic regression model
+model.stats <- function(model){
+
+  # compute odds ratio, 95% CI and p-value
+  odds.ratio <- exp(coef(summary(model))[2,1])
+  CI.lower <- exp(confint(model)[2,1])
+  CI.upper <- exp(confint(model)[2,2])
+  p.value <- coef(summary(model))[2,4]
+  
+  # brief summary table of the summary statistics
+  gdm.grs.dt <- data.table(rbind(NULL, c(round(odds.ratio,3), round(CI.lower,3), round(CI.upper,3), signif(p.value,3))))
+  colnames(gdm.grs.dt) <- c("odds.ratio","2.5%","97.5%","p.value")
+  
+  return(gdm.grs.dt)
+}
+
 # score 1: SNPs with p.value < 10^-4
-fit.score.model(pheno ~ p4.score, gdm.dt)
+model.stats(p4.score.log.regr)
 # score 2: SNPs with p.value < 10^-3
-fit.score.model(pheno ~ p3.score, gdm.dt)
+model.stats(p3.score.log.regr)
 # score 3: SNPs on the FTO gene
-fit.score.model(pheno ~ FTO.score, gdm.dt)
+model.stats(FTO.score.log.regr)
 ```
 
 #### Problem 3 (f)
@@ -926,5 +951,30 @@ gdm.test.dt$FTO.score <- gdm.test3.weighted.grs
 ```
 
 #### Problem 3 (g)
+
+Using the logistic regression models fitted at point (e) to predict the outcome of patients in `gdm.test.dt`:
+```{r}
+p4.score.pred <- predict(p4.score.log.regr, gdm.test.dt, type="response")
+p3.score.pred <- predict(p3.score.log.regr, gdm.test.dt, type="response")
+FTO.score.pred <- predict(FTO.score.log.regr, gdm.test.dt, type="response")
+```
+
+Computing the test log-likelihood for the predicted probabilities from the three genetic risk score models:
+```{r}
+
+```
+
+#### Problem 3 (h)
+
+Performing a meta-analysis of `GDM.study2.txt` containing the summary statistics from a different study on the same set of SNPs and the results obtained at point (c) 
+(hint: remember that the effect alleles should correspond) 
+```{r}
+
+```
+
+Producing a summary of the meta-analysis results for the set of SNPs with meta-analysis p-value < 10^−4 sorted by increasing p-value:
+```{r}
+
+```
 
 ### Problem 4

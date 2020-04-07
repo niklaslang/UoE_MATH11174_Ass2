@@ -191,19 +191,23 @@ gdm.dt$p3.score <- gdm2.weighted.grs
 gdm.dt$FTO.score <- gdm3.weighted.grs
 
 # fitting the three scores in separate logistic regression models to test their association 
-# with gestational diabetes, and for each report odds ratio, 95% confidence interval and p-value
+# with gestational diabetes:
 
-# function to fit logistic regression models for and calculate odds ratio, 95% CI l and p-value
-fit.score.model <- function(formula, data){
+# score 1: SNPs with p.value < 10^-4
+p4.score.log.regr <- glm(pheno ~ p4.score, data = gdm.dt, family = "binomial")
+# score 2: SNPs with p.value < 10^-3
+p3.score.log.regr <- glm(pheno ~ p3.score, data = gdm.dt, family = "binomial")
+# score 3: SNPs on the FTO gene
+FTO.score.log.regr <- glm(pheno ~ FTO.score, data = gdm.dt, family = "binomial")
 
-  # fit logistic regression model  
-  log.regr <- glm(formula, data = data, family = "binomial")
-  
+# function to calculate odds ratio, 95% CI l and p-value for a logistic regression model
+model.stats <- function(model){
+
   # compute odds ratio, 95% CI and p-value
-  odds.ratio <- exp(coef(summary(log.regr))[2,1])
-  CI.lower <- exp(confint(log.regr)[2,1])
-  CI.upper <- exp(confint(log.regr)[2,2])
-  p.value <- coef(summary(log.regr))[2,4]
+  odds.ratio <- exp(coef(summary(model))[2,1])
+  CI.lower <- exp(confint(model)[2,1])
+  CI.upper <- exp(confint(model)[2,2])
+  p.value <- coef(summary(model))[2,4]
   
   # brief summary table of the summary statistics
   gdm.grs.dt <- data.table(rbind(NULL, c(round(odds.ratio,3), round(CI.lower,3), round(CI.upper,3), signif(p.value,3))))
@@ -212,13 +216,13 @@ fit.score.model <- function(formula, data){
   return(gdm.grs.dt)
 }
 
-# fitting the three scores in separate logistic regression models
+# reporting odds ratio, 95% confidence interval and p-value for each model
 # score 1: SNPs with p.value < 10^-4
-fit.score.model(pheno ~ p4.score, gdm.dt)
+model.stats(p4.score.log.regr)
 # score 2: SNPs with p.value < 10^-3
-fit.score.model(pheno ~ p3.score, gdm.dt)
+model.stats(p3.score.log.regr)
 # score 3: SNPs on the FTO gene
-fit.score.model(pheno ~ FTO.score, gdm.dt)
+model.stats(FTO.score.log.regr)
 
 ### (f) ###
 
@@ -255,5 +259,43 @@ gdm.test.dt$FTO.score <- gdm.test3.weighted.grs
 
 ### (g) ###
 
+# Using the logistic regression models fitted at point (e) to predict the outcome of patients in gdm.test.dt
 
+p4.score.pred <- predict(p4.score.log.regr, gdm.test.dt, type="response")
+p3.score.pred <- predict(p3.score.log.regr, gdm.test.dt, type="response")
+FTO.score.pred <- predict(FTO.score.log.regr, gdm.test.dt, type="response")
 
+# Computing the test log-likelihood for the predicted probabilities from the three genetic risk score models
+library(pROC)
+roc(gdm.test.dt$pheno ~ p4.score.pred, plot=TRUE)
+roc(gdm.test.dt$pheno ~ p3.score.pred, plot=TRUE)
+roc(gdm.test.dt$pheno ~ FTO.score.pred, plot=TRUE)
+
+logLik(p4.score.log.regr)
+logLik(p3.score.log.regr)
+logLik(FTO.score.log.regr)
+
+### (h) ###
+
+# Performing a meta-analysis of `GDM.study2.txt` 
+# containing the summary statistics from a different study on the same set of SNPs 
+# and the results obtained at point (c)
+
+gdm.gwas2.dt <- fread("GDM.study2.txt")
+gdm.gwas1.dt <- gdm.gwas.dt
+
+# harmonize datasets
+gdm.gwas2.dt <- gdm.gwas2.dt[snp %in% gdm.gwas.dt$rsID]
+gdm.gwas.dt <- gdm.gwas.dt[rsID %in% gdm.gwas2.dt$snp]
+
+# order by chromosome and position
+gdm.gwas2.dt <- gdm.gwas2.dt[match(gdm.gwas.dt$rsID, gdm.gwas2.dt$snp),]
+stopifnot(all.equal(gdm.gwas.dt$rsID, gdm.gwas2.dt$snp))
+
+# 
+ok <- gdm.gwas.dt$reference.allele == gdm.gwas2.dt$effect.allele & gdm.gwas.dt$rsID == gdm.gwas2.dt$snp
+not.ok <- gdm.gwas.dt$reference.allele == gdm.gwas2.dt$other.allele & gdm.gwas.dt$rsID == gdm.gwas2.dt$snp
+test.ok <- not.ok == FALSE
+test.ok <- test.ok == ok
+
+table(ok, not.ok)
