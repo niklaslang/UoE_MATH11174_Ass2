@@ -892,6 +892,39 @@ fit.score.model(pheno ~ FTO.score, gdm.dt)
 
 #### Problem 3 (f)
 
+Reading the file `GDM.test.txt` into variable `gdm.test.dt`:
+```{r}
+gdm.test.dt <- fread("GDM.test.txt", stringsAsFactors = TRUE)
+```
 
+For the set of patients in `gdm.test.dt`, computing the three genetic risk scores as defined at point (e) using the same set of SNPs and corresponding weights:
+```{r}
+# ensure that the ordering of SNPs is respected
+gdm.gwas.dt <- gdm.gwas.dt[match(colnames(gdm.test.dt)[-c(1,2,3)], gdm.gwas.dt$rsID),]
+
+# assertion check that the ordering of SNPs is respected
+stopifnot(colnames(gdm.test.dt)[-c(1,2,3)] == gdm.gwas.dt$rsID)
+
+# score 1: p.value < 10^-4
+gdm.test1.grs <- gdm.test.dt[, .SD, .SDcols = gdm.gwas.dt[p.value < 1e-4]$rsID]
+gdm.test1.weighted.grs <- as.matrix(gdm.test1.grs) %*% gdm1.snp$beta
+
+# score 2: p.value < 10^-3
+gdm.test2.grs <- gdm.test.dt[, .SD, .SDcols = gdm.gwas.dt[p.value < 1e-3]$rsID]
+gdm.test2.weighted.grs <- as.matrix(gdm.test2.grs) %*% gdm2.snp$beta
+
+# score 3: SNP on the FTO gene
+gdm.test3.grs <- gdm.test.dt[, .SD, .SDcols = gdm.gwas.dt[gene == "FTO"]$rsID]
+gdm.test3.weighted.grs <- as.matrix(gdm.test3.grs) %*% gdm3.snp$beta
+```
+
+Adding the three scores as columns to `gdm.test.dt` (hint: use the same column names as before):
+```{r}
+gdm.test.dt$p4.score <- gdm.test1.weighted.grs
+gdm.test.dt$p3.score <- gdm.test2.weighted.grs
+gdm.test.dt$FTO.score <- gdm.test3.weighted.grs
+```
+
+#### Problem 3 (g)
 
 ### Problem 4
