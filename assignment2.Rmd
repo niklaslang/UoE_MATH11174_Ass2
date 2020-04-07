@@ -661,8 +661,9 @@ rsIDs <- str_extract(colnames(gdm.dt)[-c(1,2,3)], rsID.regex) # extract rsIDs (e
 reference.alleles <- str_extract(colnames(gdm.dt)[-c(1,2,3)], reference.allele.regex) # extract all reference alleles (exclude colums 1-3: id, sex, pheno)
 
 # store rsIDs and reference alleles in data table
-snp.allele.dt <- data.table( "rsID" = rsIDs,
-                             "reference.allele" = reference.alleles)
+snp.allele.dt <- data.table( "snp.name" = colnames(gdm.dt)[-c(1,2,3)],
+                             "rsID" = str_extract(colnames(gdm.dt)[-c(1,2,3)], rsID.regex),
+                             "reference.allele" = str_extract(colnames(gdm.dt)[-c(1,2,3)], reference.allele.regex))
 
 # check results
 head(snp.allele.dt)
@@ -722,7 +723,7 @@ univ.glm.test <- function( data, outcome, order=FALSE){
   }
 
   # add column of SNP IDs
-  output <- cbind(snp.allele.dt$rsID, output)
+  output <- cbind(snp.allele.dt$snp.name, output)
   
   # add colnames to output table
   colnames(output) <- c("snp","beta", "std.error", "p.value")
@@ -792,12 +793,12 @@ Merging the GWAS results with the table of gene names provided in file `GDM.anno
 gdm.annot.dt <- fread("GDM.annot.txt")
 
 # merge with allele information
-gdm.gwas.dt <- merge(gdm.annot.dt, snp.allele.dt,
-                     by.x = "snp", by.y = "rsID")
+gdm.gwas.dt <- merge(snp.allele.dt, gdm.annot.dt,
+                     by.x = "rsID", by.y = "snp")
 
 # merge GWAS results
 gdm.gwas.dt <- merge(gdm.gwas.dt, gdm.snp.dt,
-                     by.x = "snp", by.y = "snp")
+                     by.x = "snp.name", by.y = "snp")
 
 # convert pos column to numeric
 gdm.gwas.dt[, pos := as.numeric(pos)]
@@ -822,6 +823,75 @@ gdm.gwas.dt[chrom == hit.snp.dt$chrom[2]][pos >= hit.snp.dt$pos[2] - 1000000 & p
 ```
 
 #### Problem (e)
+
+Building a weighted genetic risk score that includes all SNPs with p-value < 10−4,
+a second score with all SNPs with p-value < 10−3, 
+and a third score that only includes SNPs on the FTO gene:
+
+```{r}
+# ensure that the ordering of SNPs is respected
+gdm.gwas.dt <- gdm.gwas.dt[match(colnames(gdm.dt)[-c(1,2,3)], gdm.gwas.dt$snp.name),]
+
+# assertion check that the ordering of SNPs is respected
+stopifnot(colnames(gdm.dt)[-c(1,2,3)] == gdm.gwas.dt$snp.name)
+
+# score 1: p.value < 10^-4
+gdm1.snp <- gdm.gwas.dt[p.value < 1e-4]
+gdm1.grs <- gdm.dt[, .SD, .SDcols = gdm.gwas.dt[p.value < 1e-4]$snp.name]
+gdm1.weighted.grs <- as.matrix(gdm1.grs) %*% gdm1.snp$beta
+
+# score 2: p.value < 10^-3
+gdm2.snp <- gdm.gwas.dt[p.value < 1e-3]
+gdm2.grs <- gdm.dt[, .SD, .SDcols = gdm.gwas.dt[p.value < 1e-3]$snp.name]
+gdm2.weighted.grs <- as.matrix(gdm2.grs) %*% gdm2.snp$beta
+
+# score 3: SNP on the FTO gene
+gdm3.snp <- gdm.gwas.dt[gene == "FTO"]
+gdm3.grs <- gdm.dt[, .SD, .SDcols = gdm.gwas.dt[gene == "FTO"]$snp.name]
+gdm3.weighted.grs <- as.matrix(gdm3.grs) %*% gdm3.snp$beta
+```
+
+Adding the three scores as columns to the `gdm.dt` data table:
+```{r}
+gdm.dt$p4.score <- gdm1.weighted.grs
+gdm.dt$p3.score <- gdm2.weighted.grs
+gdm.dt$FTO.score <- gdm3.weighted.grs
+```
+
+Fitting the three scores in separate logistic regression models to test their association  with gestational diabetes:
+```{r}
+# function to fit logistic regression models and calculate odds ratio, 95% CI l and p-value
+fit.score.model <- function(formula, data){
+
+  # fit logistic regression model  
+  log.regr <- glm(formula, data = data, family = "binomial")
+  
+  # compute odds ratio, 95% CI and p-value
+  odds.ratio <- exp(coef(summary(log.regr))[2,1])
+  CI.lower <- exp(confint(log.regr)[2,1])
+  CI.upper <- exp(confint(log.regr)[2,2])
+  p.value <- coef(summary(log.regr))[2,4]
+  
+  # brief summary table of the summary statistics
+  gdm.grs.dt <- data.table(rbind(NULL, c(round(odds.ratio,3), round(CI.lower,3), round(CI.upper,3), signif(p.value,3))))
+  colnames(gdm.grs.dt) <- c("odds.ratio","2.5%","97.5%","p.value")
+  
+  return(gdm.grs.dt)
+}
+```
+
+Fitting the three scores in separate logistic regression models and reporting odds ratio, 95% CI and p-value:
+```{r}
+# score 1: SNPs with p.value < 10^-4
+fit.score.model(pheno ~ p4.score, gdm.dt)
+# score 2: SNPs with p.value < 10^-3
+fit.score.model(pheno ~ p3.score, gdm.dt)
+# score 3: SNPs on the FTO gene
+fit.score.model(pheno ~ FTO.score, gdm.dt)
+```
+
+#### Problem 3 (f)
+
 
 
 ### Problem 4
