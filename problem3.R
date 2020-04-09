@@ -267,6 +267,20 @@ FTO.score.pred <- predict(FTO.score.log.regr, gdm.test.dt, type="response")
 
 # Computing the test log-likelihood for the predicted probabilities from the three genetic risk score models
 
+# with the binomial likelihood function sum(log(all prediction values where the observed result was 1))  + sum(log( 1 - all prediction values where the observed result was 0))
+
+# for score 1: p.value < 10^-4
+p4.score.pred.loglik <- sum(log(p4.score.pred[gdm.test.dt$pheno == 1])) + sum(log(1-p4.score.pred[gdm.test.dt$pheno == 0]))
+p4.score.pred.loglik
+
+# for score 2: p.value < 10^-3
+p3.score.pred.loglik <- sum(log(p3.score.pred[gdm.test.dt$pheno == 1])) + sum(log(1-p3.score.pred[gdm.test.dt$pheno == 0]))
+p3.score.pred.loglik
+
+# for score 3: FTO gene
+FTO.score.pred.loglik <- sum(log(FTO.score.pred[gdm.test.dt$pheno == 1])) + sum(log(1-FTO.score.pred[gdm.test.dt$pheno == 0]))
+FTO.score.pred.loglik
+
 # compute the log-likelihoods of the three models
 logLik(p4.score.log.regr)
 logLik(p3.score.log.regr)
@@ -294,10 +308,12 @@ gdm.gwas.dt <- gdm.gwas.dt[rsID %in% gdm.gwas2.dt$snp]
 gdm.gwas2.dt <- gdm.gwas2.dt[match(gdm.gwas.dt$rsID, gdm.gwas2.dt$snp),]
 stopifnot(all.equal(gdm.gwas.dt$rsID, gdm.gwas2.dt$snp))
 
-# 
-ok <- gdm.gwas.dt$reference.allele == gdm.gwas2.dt$effect.allele & gdm.gwas.dt$rsID == gdm.gwas2.dt$snp
-not.ok <- gdm.gwas.dt$reference.allele == gdm.gwas2.dt$other.allele & gdm.gwas.dt$rsID == gdm.gwas2.dt$snp
-test.ok <- not.ok == FALSE
-test.ok <- test.ok == ok
+# matching alleles
+matching.alleles <- gdm.gwas.dt$reference.allele == gdm.gwas2.dt$effect.allele & gdm.gwas.dt$rsID == gdm.gwas2.dt$snp
+# flipped alleles
+flipping.alleles <- gdm.gwas.dt$reference.allele == gdm.gwas2.dt$other.allele & gdm.gwas.dt$rsID == gdm.gwas2.dt$snp
+# summary
+table(matching.alleles, flipping.alleles)
 
-table(ok, not.ok)
+# ensure that the effect alleles correspond
+
