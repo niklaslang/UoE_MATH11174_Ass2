@@ -312,8 +312,38 @@ stopifnot(all.equal(gdm.gwas.dt$rsID, gdm.gwas2.dt$snp))
 matching.alleles <- gdm.gwas.dt$reference.allele == gdm.gwas2.dt$effect.allele & gdm.gwas.dt$rsID == gdm.gwas2.dt$snp
 # flipped alleles
 flipping.alleles <- gdm.gwas.dt$reference.allele == gdm.gwas2.dt$other.allele & gdm.gwas.dt$rsID == gdm.gwas2.dt$snp
+# unmatched alleles
+unmatched.alleles <- matching.alleles == flipping.alleles
 # summary
 table(matching.alleles, flipping.alleles)
 
 # ensure that the effect alleles correspond
+beta1 <- gdm.gwas1.dt$beta
+beta2 <- gdm.gwas2.dt$beta
+beta2[flipping.alleles] <- -beta2[flipping.alleles]
 
+# exclude SNPs that couldn't be matched after swapping
+beta1 <- beta1[!unmatched.alleles]
+beta2 <- beta2[!unmatched.alleles]
+
+# inverse variance weighting
+weight.gwas1 <- 1 / gdm.gwas1.dt$std.error[!unmatched.alleles]^2
+weight.gwas2 <- 1 / gdm.gwas2.dt$se[!unmatched.alleles]^2
+
+# computing the meta-analysis effect size 
+# which is a weighted sum of the effect sizes from each study, weighted according to the weight just derived.
+
+beta.ma <- (weight.gwas1 * beta1 + weight.gwas2 * beta2) / (weight.gwas1 + weight.gwas2) 
+se.ma <- sqrt(1 / (weight.gwas1 + weight.gwas2))
+
+# plotting the p-values of the meta-analysis against the p-values of the first study
+pval.ma <- 2 * pnorm(abs(beta.ma / se.ma), lower.tail=FALSE)
+ma.results.dt <- data.table("snp" = gdm.gwas1.dt$rsID[!unmatched.alleles],
+                            "p.value" = pval.ma)
+
+# select for meta-analysis p-value < 10^−4
+ma.results.dt <- ma.results.dt[p.value < 1e-4]
+setorder(ma.results.dt, p.value)
+
+# show 
+head(ma.results.dt)
