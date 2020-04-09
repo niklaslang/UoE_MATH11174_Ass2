@@ -266,14 +266,16 @@ p3.score.pred <- predict(p3.score.log.regr, gdm.test.dt, type="response")
 FTO.score.pred <- predict(FTO.score.log.regr, gdm.test.dt, type="response")
 
 # Computing the test log-likelihood for the predicted probabilities from the three genetic risk score models
-library(pROC)
-roc(gdm.test.dt$pheno ~ p4.score.pred, plot=TRUE)
-roc(gdm.test.dt$pheno ~ p3.score.pred, plot=TRUE)
-roc(gdm.test.dt$pheno ~ FTO.score.pred, plot=TRUE)
 
+# compute the log-likelihoods of the three models
 logLik(p4.score.log.regr)
 logLik(p3.score.log.regr)
 logLik(FTO.score.log.regr)
+
+# perform log-likelihood test of the three models against the null models
+pchisq(p4.score.log.regr$null.deviance - p4.score.log.regr$deviance, df=1, lower.tail=FALSE)
+pchisq(p3.score.log.regr$null.deviance - p3.score.log.regr$deviance, df=1, lower.tail=FALSE)
+pchisq(FTO.score.log.regr$null.deviance - FTO.score.log.regr$deviance, df=1, lower.tail=FALSE)
 
 ### (h) ###
 

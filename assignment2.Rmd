@@ -961,8 +961,21 @@ FTO.score.pred <- predict(FTO.score.log.regr, gdm.test.dt, type="response")
 
 Computing the test log-likelihood for the predicted probabilities from the three genetic risk score models:
 ```{r}
+# compute the log-likelihoods of the three models
+logLik(p4.score.log.regr)
+logLik(p3.score.log.regr)
+logLik(FTO.score.log.regr)
 
+# perform log-likelihood test of the three models against the null models
+pchisq(p4.score.log.regr$null.deviance - p4.score.log.regr$deviance, df=1, lower.tail=FALSE)
+pchisq(p3.score.log.regr$null.deviance - p3.score.log.regr$deviance, df=1, lower.tail=FALSE)
+pchisq(FTO.score.log.regr$null.deviance - FTO.score.log.regr$deviance, df=1, lower.tail=FALSE)
 ```
+I personally found it very unclear, what we are supposed to test here.
+Hence, I did the two things that make the most sense in my eyes.
+First I computed the log-likelihoods of the three genetic risk score models.
+Then, I performed log-likelihood test of the three models against the null models.
+However, until today I can't think of a way how to "test log-likelihood for the predicted probabilities".
 
 #### Problem 3 (h)
 
