@@ -62,7 +62,7 @@ pca.genes <- prcomp(t(nki.genes.dt), scale = TRUE)
 
 # scatter plot: projection of the predictors on the first two principal components
 par(cex=1)
-plot(pca.genes$x[, 1:2], main="Projection of variables on the first 2 PCs", col = "firebrick", cex=0.8)
+plot(pca.genes$x[, 1:2], main="Projection of variables on the first 2 PCs", col = "firebrick", pch=19)
 
 # percentage of variance explained by the first two components
 perc.expl <- pca.genes$sdev^2 / sum(pca.genes$sdev^2) 
@@ -71,4 +71,45 @@ sum(perc.expl[1:2])
 # Starting from the PCA plot just produced, devising a simple rule PC2 < -10 
 # that identifies the four gene expressions that are most different from the rest and report their names
 pca.genes$x[which(pca.genes$x[,"PC2"] < -10), .SD]
+
+### (c) ###
+
+# Running PCA (only over the columns containing gene expressions) again,
+# this time in order to derive a patient-wise summary of all gene expressions (dimensionality reduction), 
+# and only keeping the first 3 principal components. 
+pca.patients <- prcomp(nki.genes.dt, scale = TRUE)
+plot(pca.patients$x[, 1:2], main="Projection of patients on the first 2 PCs", 
+     col = ifelse(nki.dt$Event == 1, "firebrick", "royalblue1"), pch=19, lwd=0.5)
+legend("bottomleft", legend=c("No complications", "Complications"), col = c("royalblue1", "firebrick"), pch = 21)
+
+top3.PCs <- pca.patients$x[, 1:3]
+
+# add top 3 PCs to nki.dt
+nki.dt$PC1 <- top3.PCs[,1]
+nki.dt$PC2 <- top3.PCs[,2]
+nki.dt$PC3 <- top3.PCs[,3]
+
+# Testing if those principal components (independently) are associated with the outcome 
+# in unadjusted logistic regression models and in models adjusted for age, estrogen receptor and grade
+
+# testing PC1
+PC1.unadjusted.model <- glm(Event ~ PC1, data = nki.dt, family="binomial") # unadjusted model
+PC1.adjusted.model <- glm(Event ~ PC1 + Age + EstrogenReceptor + Grade, data = nki.dt, family="binomial") # adjusted model
+coef(summary(PC1.unadjusted.model))[-1,c(1,4)]
+coef(summary(PC1.adjusted.model))[-1,c(1,4)]
+
+# testing PC2
+PC2.unadjusted.model <- glm(Event ~ PC2, data = nki.dt, family="binomial")  # unadjusted model
+PC2.adjusted.model <- glm(Event ~ PC2 + Age + EstrogenReceptor + Grade, data = nki.dt, family="binomial")  # adjusted model
+coef(summary(PC2.unadjusted.model))[-1,c(1,4)]
+coef(summary(PC2.adjusted.model))[-1,c(1,4)]
+
+# testing PC3
+PC3.unadjusted.model <- glm(Event ~ PC3, data = nki.dt, family="binomial")   # unadjusted model
+PC3.adjusted.model <- glm(Event ~ PC3 + Age + EstrogenReceptor + Grade, data = nki.dt, family="binomial")  # adjusted model
+coef(summary(PC3.unadjusted.model))[-1,c(1,4)]
+coef(summary(PC3.adjusted.model))[-1,c(1,4)]
+
+# Justify the difference in results between unadjusted and adjusted models
+
   

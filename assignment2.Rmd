@@ -1104,14 +1104,14 @@ Running PCA (only over the columns containing gene expressions) so that it is po
 stopifnot(sum(is.na(nki.genes.dt)) == 0)
 
 # perform PCA
-pca.vars <- prcomp(t(nki.genes.dt), scale = TRUE)
+pca.genes <- prcomp(t(nki.genes.dt), scale = TRUE)
 
 # scatter plot: projection of the predictors on PC1 and PC2
 par(cex=1)
-plot(pca.vars$x[, 1:2], main="Projection of variables on the first 2 PCs", col = "firebrick", cex=0.8)
+plot(pca.genes$x[, 1:2], main="Projection of variables on the first 2 PCs", col = "firebrick", pch=19)
 
 # compute percentage of variance explained by the first two components
-perc.expl <- pca.vars$sdev^2 / sum(pca.vars$sdev^2) 
+perc.expl <- pca.genes$sdev^2 / sum(pca.genes$sdev^2) 
 round(sum(perc.expl[1:2]),3)
 ```
 
@@ -1121,3 +1121,63 @@ Starting from the PCA plot just produced, devising a simple rule PC2 < -10 that 
 ```{r}
 pca.genes$x[which(pca.genes$x[,"PC2"] < -10), .SD]
 ```
+
+#### Problem 4 (c)
+
+Running PCA over the gene expression data again in order to derive a patient-wise summary of all gene expressions (dimensionality reduction), and only keeping the first 3 PCs:
+```{r}
+# perform pca
+pca.patients <- prcomp(nki.genes.dt, scale = TRUE)
+
+# plot results (outcomes are colour coded)
+plot(pca.patients$x[, 1:2], main="Projection of patients on the first 2 PCs", 
+     col = ifelse(nki.dt$Event == 1, "firebrick", "royalblue1"), pch=19, lwd=0.5)
+legend("bottomleft", legend=c("No complications", "Complications"), col = c("royalblue1", "firebrick"), pch = 21)
+
+# keep first 3 PCs
+top3.PCs <- pca.patients$x[, 1:3]
+
+# add top 3 PCs to nki.dt
+nki.dt$PC1 <- top3.PCs[,1]
+nki.dt$PC2 <- top3.PCs[,2]
+nki.dt$PC3 <- top3.PCs[,3]
+```
+
+Testing if those PCs independently are associated with the outcome in unadjusted logistic regression models and in models adjusted for age, estrogen receptor and grade:
+```{r}
+# testing PC1
+PC1.unadjusted.model <- glm(Event ~ PC1, data = nki.dt, family="binomial") 
+PC1.adjusted.model <- glm(Event ~ PC1 + Age + EstrogenReceptor + Grade, data = nki.dt, family="binomial")
+# beta and p.value of unadjusted model
+coef(summary(PC1.unadjusted.model))[2,c(1,4)]
+# beta and p.value of adjusted model
+coef(summary(PC1.adjusted.model))[2,c(1,4)]
+
+# testing PC2
+PC2.unadjusted.model <- glm(Event ~ PC2, data = nki.dt, family="binomial")  # unadjusted model
+PC2.adjusted.model <- glm(Event ~ PC2 + Age + EstrogenReceptor + Grade, data = nki.dt, family="binomial")  # adjusted model
+# beta and p.value of unadjusted model
+coef(summary(PC2.unadjusted.model))[2,c(1,4)]
+# beta and p.value of adjusted model
+coef(summary(PC2.adjusted.model))[2,c(1,4)]
+
+# testing PC3
+PC3.unadjusted.model <- glm(Event ~ PC3, data = nki.dt, family="binomial")   # unadjusted model
+PC3.adjusted.model <- glm(Event ~ PC3 + Age + EstrogenReceptor + Grade, data = nki.dt, family="binomial")  # adjusted model
+# beta and p.value of unadjusted model
+coef(summary(PC3.unadjusted.model))[2,c(1,4)]
+# beta and p.value of adjusted model
+coef(summary(PC3.adjusted.model))[2,c(1,4)]
+```
+
+**Justifying the difference in results between unadjusted and adjusted models:**
+
+Looking at the results it can be claimed that there is a significant assocation (p < 0.05) between PC1 and the insurgence of further complications after operation, as well as between PC3 and the insurgence of complications.
+However, this is a hasty conclusion, given that the insurgence of operations for sure also depends on clinical parameters, such as age and tumor classification (estrogen recptor positive or negativ) and tumor staging (differentiation grade).
+Hence, it is inevitable to test whether the association between the PCs of the gene expression and complications is independent of the most common clinical confounders.
+In order to test this, we evaluated whether the association between PC1 and complications as well as PC3 and complications are still significant after adjusting for age, estrogen recptor status and differentiation grade, since these variables are known to affect the outcome.
+
+After adjusting for these so called confounders, we can claim there is no significant association between P1 and complications after adjusting for age, estrogen recptor status and differentiation grade.
+However, we can claim there is a significant association between P3 and complications even after adjusting for these confounders.
+Hence, we can conclude that the association between PC3 and complications is independent of these confounders, wheras these PC1 and complications is not.
+Lastly, there is no significant association between PC2 and complications and this does not change after adjusting for the confounders.
