@@ -476,30 +476,26 @@ Plot C illustrates the "curse of dimensionality": reducing the number of explana
 Performing backwards elimination (model `bc.sel.back`) on the same training set derived at point (a) and
 
 ```{r}
+# standardize variables to obtain standardized coefficients
+bc.sd1.dt <- copy(bc.dt)
+covar.variables <- colnames(bc.dt[, -c("id", "diagnosis")]) # exclude non covariate columns
+bc.sd1.dt[, (covar.variables) := lapply(.SD, function(x) x / sd(x, na.rm = TRUE)), .SDcols = covar.variables]
+
 # load library for stepwise regression
 library(MASS)
 
-# fit logistic regression model with all the training split from (a)
-bc.full.model <- glm(diagnosis ~ ., data=bc.dt[, !"id"], subset = train.idx, family="binomial") # all variables except the patient id
+# fit logistic regression model with all training split from (a)
+bc.full.model <- glm(diagnosis ~ ., data=bc.sd1.dt[, !"id"], subset = train.idx, family="binomial") # all variables except the patient id
 
-# perform stepwise regression (backward elimination)
 bc.sel.back <- stepAIC(bc.full.model, direction="back")
 ```
 
 Reporting the variables selected and their standardized regression coefficients 
 in decreasing order of the absolute value of their standardized regression coefficient:
 ```{r}
-# function to compute standardized regression coefficients
-stdz.coef <- function(model){
-  b <- summary(model)$coef[-1,1]
-  sx <- sapply(model$model[-1], sd)
-  beta <-(3^(1/2))/pi * sx * b
-  return(beta)
-}
-
 # create data table with variable and regression coefs
 bc.sel.back.coefs <- data.table("variable" = rownames(coef(summary(bc.sel.back)))[-1],
-                               "stdz.coef" = signif(stdz.coef(bc.sel.back)))
+                               "stdz.coef" = signif(coef(summary(bc.sel.back))[-1,1]))
 
 # sort by absolute value of their standardized regression coefficient (in decreasing order)
 bc.sel.back.coefs <- bc.sel.back.coefs[order(-abs(bc.sel.back.coefs$stdz.coef))]
@@ -512,41 +508,43 @@ bc.sel.back.coefs
 
 Repeating the same analysis of point (d) by using stepwise selection (model `bc.sel.forw`) starting from the null model:
 ```{r}
+bc.train.dt <- bc.sd1.dt[, !"id"][train.idx]
+
 # fit logistic regression model with all the training split from (a)
-bc.null.model <- glm(diagnosis ~ 1, data=bc.dt[, !"id"], subset = train.idx, family="binomial") # only the intercept
+bc.null.model <- glm(diagnosis ~ 1, data=bc.sd1.dt[, !"id"], subset = train.idx, family="binomial") # only the intercept
 
 # perform stepwise regression (forward selection)
-bc.sel.forw <- stepAIC(bc.null.model, scope=list(upper=bc.full.model),direction="forward")
+bc.step.select <- step(bc.null.model, scope=list(upper=bc.full.model),direction="both")
 ```
 
 Reporting the variables selected and their standardized regression coefficients 
 in decreasing order of the absolute value of their standardized regression coefficient:
 ```{r}
 # create data table with variable and stdz coefs
-bc.sel.forw.coefs <- data.table("variable" = rownames(coef(summary(bc.sel.forw)))[-1],
-                                "stdz.coef" = signif(stdz.coef(bc.sel.forw)))
+bc.step.select.coefs <- data.table("variable" = rownames(coef(summary(bc.step.select)))[-1],
+                                "stdz.coef" = signif(coef(summary(bc.step.select))[-1,1]))
 
 # sort coefs by absolute value of their standardized regression coefficient (in decreasing order)
-bc.sel.forw.coefs <- bc.sel.forw.coefs[order(-abs(bc.sel.forw.coefs$stdz.coef))]
+bc.step.select.coefs <- bc.step.select.coefs[order(-abs(bc.step.select.coefs$stdz.coef))]
 
 # view results
-bc.sel.forw.coefs
+bc.step.select.coefs
 ```
 
 **Did at any point in this procedure occur that a variable entered the model and was later on discarded? If so which?**
 
-When tracing back all step of stepAIC(), I found that stepAIC() only added variables, but never removed any. So I wonder whether this is possible to happen at all when using stepAIC().
+When tracing back all steps of stepwise selection process, it can be observed that variables `perimeter.worst`, `texture` and `area.stderr` where initially added to the model, but were later discarded.
 
 #### Problem 2 (f)
 
-Comparing the goodness of fit of model `bc.sel.back`(backwards elimination) and model `bc.sel.forw` (forward selection):
+Comparing the goodness of fit of model `bc.sel.back`(backwards elimination) and model `bc.step.select` (stepwise selection):
 Given that the two models are not nested, we cannot use a likelihood ratio test.
 But we can still use the AIC and BIC:
 
 ```{r}
 #AIC
 AIC(bc.sel.back)
-AIC(bc.sel.forw)
+AIC(bc.step.select)
 ```
 
 Since model `bc.sel.back` has lower AIC, so it’s tempting to say it's the better model.
@@ -554,15 +552,16 @@ BUT:
 ```{r}
 #BIC
 BIC(bc.sel.back)
-BIC(bc.sel.forw)
+BIC(bc.step.select)
 ```
 
-Model `bc.sel.forw` has lower BIC (which applies a stronger penalty for the use of additional predictors than AIC).
-Thi suggsest that `bc.sel.back` is the better model, but `bc.sel.forw` has fewer predictors.
+Model `bc.step.select` has lower BIC (which applies a stronger penalty for the use of additional predictors than AIC).
+So depending on what criteria you judge, `bc.sel.back` or `bc.step.select` will be the better model.
+However, since the AICs are almost identical, it does not come as a surprise that the BIC of `bc.step.select` is lower, since it has far fewer predictors.
 
 #### Problem 2 (g)
 
-Using model `bc.sel.back` and model `bc.sel.forw` to predict observations in the training set, and from that compute the training AUC:
+Using model `bc.sel.back` and model `bc.step.select` to predict observations in the training set, and from that compute the training AUC:
 
 ```{r}
 # import package to compute and plot area under the curve
@@ -570,13 +569,13 @@ library(pROC)
 
 # make predictions
 bc.sel.back.pred <- predict(bc.sel.back, newdata=bc.dt[train.idx], type="response")
-bc.sel.forw.pred <- predict(bc.sel.forw, newdata=bc.dt[train.idx], type="response")
+bc.step.select.pred <- predict(bc.step.select, newdata=bc.dt[train.idx], type="response")
 
 # plot AUCs
 par(mfrow=c(1,1))
 roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs", col="brown2", lwd = 1.3)
-roc(bc.dt$diagnosis[train.idx], bc.sel.forw.pred, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.3)
-legend("bottomright", c("backwards elimination: AUC = 0.992", "forward selection: AUC = 0.989"), fill = c("brown2","deepskyblue3"))
+roc(bc.dt$diagnosis[train.idx], bc.step.select.pred, plot=TRUE, legacy.axes=TRUE, add=TRUE, col="deepskyblue3", lwd = 1.3)
+legend("bottomright", c("backwards elimination: AUC = 0.992", "stepwise selection: AUC = 0.989"), fill = c("brown2","deepskyblue3"))
 ```
 
 #### Problem 2 (h)
@@ -584,7 +583,7 @@ legend("bottomright", c("backwards elimination: AUC = 0.992", "forward selection
 Using the four models to predict the outcome for the observations in the test set (using the lambda at 1 standard error for the ridge and lasso models)
 ```{r}
 bc.sel.back.pred.obs <- predict(bc.sel.back, newdata=bc.dt[-train.idx,], type="response")
-bc.sel.forw.pred.obs <- predict(bc.sel.forw, newdata=bc.dt[-train.idx,], type="response")
+bc.step.select.pred.obs <- predict(bc.step.select, newdata=bc.dt[-train.idx,], type="response")
 bc.ridge.pred.obs <- predict(bc.cv.ridge, newx = x.bc.dt[-train.idx,], type="response", s=bc.cv.ridge$lambda.1se)
 bc.lasso.pred.obs <- predict(bc.cv.lasso, newx = x.bc.dt[-train.idx,], type="response", s=bc.cv.lasso$lambda.1se)
 ```
@@ -595,13 +594,13 @@ Plotting the ROC curves of these models (on the same plot, using different colou
 par(mfrow=c(1,1))
 roc(bc.dt$diagnosis[-train.idx], bc.sel.back.pred.obs, plot=TRUE, legacy.axes=TRUE, main = "Test AUCs",
     col="#FF9900FF", lwd = 3)
-roc(bc.dt$diagnosis[-train.idx], bc.sel.forw.pred.obs, plot=TRUE, legacy.axes=TRUE, 
+roc(bc.dt$diagnosis[-train.idx], bc.step.select.pred.obs, plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#33FF00FF", lwd = 3)
 roc(bc.dt$diagnosis[-train.idx], as.vector(bc.ridge.pred.obs), plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#0066FFFF", lwd = 3)
 roc(bc.dt$diagnosis[-train.idx], as.vector(bc.lasso.pred.obs), plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#FF0099FF", lwd = 3)
-legend("bottomright", c("backwards elimination: AUC = 0.991", "forward selection: AUC = 0.991", "ridge regression: AUC = 0.988", "lasso regression: AUC = 0.992"), 
+legend("bottomright", c("backwards elimination: AUC = 0.991", "stepwise selection: AUC = 0.992", "ridge regression: AUC = 0.988", "lasso regression: AUC = 0.992"), 
        fill = c("#FF9900FF","#33FF00FF","#0066FFFF", "#FF0099FF"))
 ```
 
@@ -616,14 +615,14 @@ bc.lasso.pred <- predict(bc.cv.lasso, newx = x.bc.dt[train.idx,], type="response
 par(mfrow=c(1,1))
 roc(bc.dt$diagnosis[train.idx], bc.sel.back.pred, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs",
     col="#FF9900FF", lwd = 3)
-roc(bc.dt$diagnosis[train.idx], bc.sel.forw.pred, plot=TRUE, legacy.axes=TRUE, 
+roc(bc.dt$diagnosis[train.idx], bc.step.select.pred, plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#33FF00FF", lwd = 3)
 roc(bc.dt$diagnosis[train.idx], as.vector(bc.ridge.pred), plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#0066FFFF", lwd = 3)
 roc(bc.dt$diagnosis[train.idx], as.vector(bc.lasso.pred), plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#FF0099FF", lwd = 3)
 legend("bottomright", 
-       c("backwards elimination: AUC = 0.992", "forward selection: AUC = 0.989", "ridge regression: AUC = 0.972", "lasso regression: AUC = 0.978"), 
+       c("backwards elimination: AUC = 0.992", "stepwise selection: AUC = 0.989", "ridge regression: AUC = 0.972", "lasso regression: AUC = 0.978"), 
        fill = c("#FF9900FF","#33FF00FF","#0066FFFF", "#FF0099FF"))
 ```
 
@@ -632,7 +631,7 @@ Commenting on the overfitting of each model:
 For ridge regression model the training AUC was smaller than the test AUC (0.978 vs. 0.988), meaning is fits the testing data better than the training data, hence its definetly not overfitted. 
 The Lasso regression model fits the training and the testing data equally well, which is reflected in the training and testing AUCs of 0.992 and 0.992, respectively.
 In contrast to backwards elimination, for which produces the training AUC was larger than the test AUC (0.992 vs. 0.991), that the model os overfitted to the training data (meaning that it reduces the bias of the model at the cost of a higher variance).
-For the forward selection model, however, the training AUCs is smaller than the testing AUCs, suggesting the model has a higher bias, but lower variance and hence is not overfitted.
+For the stepwise selection model, however, the training AUCs is smaller than the testing AUCs, suggesting the model has a higher bias, but lower variance and hence is not overfitted and generalises better.
 
 ### Problem 3
 
@@ -1181,3 +1180,45 @@ After adjusting for these so called confounders, we can claim there is no signif
 However, we can claim there is a significant association between P3 and complications even after adjusting for these confounders.
 Hence, we can conclude that the association between PC3 and complications is independent of these confounders, wheras these PC1 and complications is not.
 Lastly, there is no significant association between PC2 and complications and this does not change after adjusting for the confounders.
+
+#### Problem 4 (d)
+
+Fitting a lasso model to predict the binary outcome using all available predictors, learning the optimal penalty parameter that maximises the AUC.
+Reporting the results (λ and AUC):
+```{r}
+# transforming the data
+# predictors
+x.nki.dt <- prepare.glmnet(nki.dt[,!c("PC1","PC2","PC3")], ~ . - Event) # exclude the outcome
+# outcome
+y.nki.dt <- nki.dt$Event
+# set.seed
+set.seed(1)
+
+# fitting a lasso model and learning by cross-validation the penalty parameter λ that maximizes the AUC
+
+nki.cv.lasso1 <- cv.glmnet(x.nki.dt, y.nki.dt, family="binomial", type.measure="auc")
+
+# penalty parameters λ that maximizes the AUC
+nki.cv.lasso1$lambda.min
+
+# max AUC
+nki.cv.lasso1$cvm[which(nki.cv.lasso1$lambda == nki.cv.lasso1$lambda.min)]
+```
+
+System run time on my machine was 0.013s.
+
+Repeating the same procedure but this time penalising only to the gene expression variables, leaving all other covariates unpenalised.
+Reporting the results (λ and AUC):
+```{r}
+nki.cv.lasso2 <- cv.glmnet(x.nki.dt, y.nki.dt, penalty.factor = c( rep(0, 5), rep(1,71)),
+                          family="binomial", type.measure="auc")
+
+# penalty parameters λ that maximizes the AUC
+nki.cv.lasso2$lambda.min
+# max AUC
+nki.cv.lasso2$cvm[which(nki.cv.lasso2$lambda == nki.cv.lasso2$lambda.min)]
+```
+
+System run time on my machine was 0.033s.
+
+**Can you explain the difference between the two models in terms of AUC?**

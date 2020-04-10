@@ -55,7 +55,6 @@ par(mfrow=c(1,2), mar=c(4,4,5,2))
 plot(bc.cv.ridge, main="Ridge")
 plot(bc.cv.lasso, main="Lasso") 
 
-
 # penalty parameters λ that maximizes the AUC
 bc.cv.ridge$lambda.min # this is admittedly counterintuitive
 bc.cv.lasso$lambda.min # this is admittedly counterintuitive
@@ -161,26 +160,24 @@ plot(bc.lasso.eval.dt$ModelSize, bc.lasso.eval.dt$AUC,
 # Performing backwards elimination (we’ll later refer to this as model B) 
 # on the same training set derived at point (a)
 
+# standardize variables to obtain standardized coefficients
+bc.sd1.dt <- copy(bc.dt)
+covar.variables <- colnames(bc.dt[, -c("id", "diagnosis")]) # exclude non covariate columns
+bc.sd1.dt[, (covar.variables) := lapply(.SD, function(x) x / sd(x, na.rm = TRUE)), .SDcols = covar.variables]
+
+# load library for stepwise regression
 library(MASS)
 
-bc.full.model <- glm(diagnosis ~ ., data=bc.dt[, !"id"], subset = train.idx, family="binomial")
+# fit logistic regression model with all the training split from (a)
+bc.full.model <- glm(diagnosis ~ ., data=bc.sd1.dt[, !"id"], subset = train.idx, family="binomial") # all variables except the patient id
 
 bc.sel.back <- stepAIC(bc.full.model, direction="back")
-
 
 # Reporting the variables selected and their standardized regression coefficients 
 # in decreasing order of the absolute value of their standardized regression coefficient
 
-# compute standardized regression coefficients
-stdz.coef <- function(model){
-  b <- summary(model)$coef[-1,1]
-  sx <- sapply(model$model[-1], sd)
-  beta <-(3^(1/2))/pi * sx * b
-  return(beta)
-}
-
 bc.sel.back.coefs <- data.table("variable" = rownames(coef(summary(bc.sel.back)))[-1],
-                               "stdz.coef" = signif(stdz.coef(bc.sel.back)))
+                               "stdz.coef" = signif(coef(summary(bc.sel.back))[-1,1]))
 
 #bc.el.back.coefs <- bc.el.back.coefs[variable != "(Intercept)"]
 bc.sel.back.coefs <- bc.sel.back.coefs[order(-abs(bc.sel.back.coefs$stdz.coef))]
@@ -191,21 +188,26 @@ bc.sel.back.coefs
 # Repeating the same analysis of point (d) by using stepwise selection (model S)
 # starting from the null model
 
-bc.null.model <- glm(diagnosis ~ 1, data=bc.dt[, !"id"], subset = train.idx, family="binomial")
+bc.train.dt <- bc.sd1.dt[, !"id"][train.idx]
 
-bc.sel.forw <- stepAIC(bc.null.model, scope=list(upper=bc.full.model),direction="forward")
+bc.null.model <- glm(diagnosis ~ 1, data=bc.sd1.dt[, !"id"], subset = train.idx, family="binomial")
+
+bc.sel.forw <- step(bc.null.model, scope=list(upper=bc.full.model),direction="both")
 
 # Reporting the variables selected and their standardized regression coefficients 
 # in decreasing order of the absolute value of their standardized regression coefficient
 
 bc.sel.forw.coefs <- data.table("variable" = rownames(coef(summary(bc.sel.forw)))[-1],
-                                "stdz.coef" = signif(stdz.coef(bc.sel.forw)))
+                                "stdz.coef" = signif(coef(summary(bc.sel.forw))[-1,1]))
 
 bc.sel.forw.coefs <- bc.sel.forw.coefs[order(-abs(bc.sel.forw.coefs$stdz.coef))]
 bc.sel.forw.coefs
 
 # Did at any point in this procedure occur that a variable entered the model and was later on discarded? 
 # If so which?
+
+# Variables included in both models:
+intersect(bc.sel.back.coefs$variable, bc.sel.forw.coefs$variable)
 
 ### (f) ###
 
@@ -302,7 +304,8 @@ roc(bc.dt$diagnosis[train.idx], as.vector(bc.lasso.pred))
 
 # plot training AUCc
 par(mfrow=c(1,1))
-roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, main = "Training AUCs",
+roc(bc.dt$diagnosis[train.idx], bc.sel.back$fitted.values, plot=TRUE, legacy.axes=TRUE, quiet = TRUE,
+    main = "Training AUCs",
     col="#FF9900FF", lwd = 3)
 roc(bc.dt$diagnosis[train.idx], bc.sel.forw$fitted.values, plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#33FF00FF", lwd = 3)
@@ -310,8 +313,6 @@ roc(bc.dt$diagnosis[train.idx], as.vector(bc.ridge.pred), plot=TRUE, legacy.axes
     add=TRUE, col="#0066FFFF", lwd = 3)
 roc(bc.dt$diagnosis[train.idx], as.vector(bc.lasso.pred), plot=TRUE, legacy.axes=TRUE, 
     add=TRUE, col="#FF0099FF", lwd = 3)
-legend("bottomright", c("backwards elimination: AUC = 0.992", "forward selection: AUC = 0.972", "ridge regression: AUC = 0.978", "lasso regression: AUC = 0.992"), 
+legend("bottomright", 
+       c("backwards elimination: AUC = 0.992", "forward selection: AUC = 0.989", "ridge regression: AUC = 0.972", "lasso regression: AUC = 0.978"), 
        fill = c("#FF9900FF","#33FF00FF","#0066FFFF", "#FF0099FF"))
-
-
-
