@@ -1033,3 +1033,67 @@ head(ma.results.dt)
 ```
 
 ### Problem 4
+
+Reading file `nki.csv` into a data table named `nki.dt`:
+```{r}
+nki.dt <- data.table(read.csv("nki.csv", stringsAsFactors = TRUE))
+```
+
+#### Problem 4 (a)
+
+Computing the matrix of correlations between the gene expression variables, and displaying it so that a block structure is highlighted:
+```{r}
+# library for creating corrplots
+library(corrplot)
+
+# computing the correlation between the numerical colums `nki.dt`
+nki.corr <- cor(nki.dt[, .SD, .SDcols = sapply(nki.dt, is.numeric)], use="pairwise.complete")
+
+# correlation plot
+par(cex=0.4)
+corrplot(nki.corr, order="hclust", diag=FALSE, tl.col="black",
+         title="Correlation matrix (hierarchically clustered)",
+         mar=c(0,2,4,0))
+
+#corrplot(nki.corr, order="FPC", diag=FALSE, tl.col="black",
+#         title="Correlation matrix (first principal component order)",
+#         mar=c(0,2,4,0))
+
+#corrplot(nki.corr, order="AOE", diag=FALSE, tl.col="black",
+#         title="Correlation matrix (angular order of the eigenvectors)",
+#         mar=c(0,2,4,0))
+```
+
+Writing some code to identify the unique pairs of (distinct) variables that have correlation coefficient greater than 0.80 in absolute value and reporting their correlation coefficients:
+```{r}
+corr.pairs <- NULL
+# loop over correlation matrix
+for (i in 1:nrow(nki.corr)){
+  for (j in 1:ncol(nki.corr)){
+    
+    # ensure pairs of variables are unique and distinct
+    if(i < j){
+      # correlation coefficient greater than 0.80 in absolute value
+      if(abs(nki.corr[i,j]) > 0.8){
+        distinct.unique.pair <- c(rownames(nki.corr)[i], colnames(nki.corr)[j], nki.corr[i,j])
+        corr.pairs <- rbind(corr.pairs, distinct.unique.pair)
+      }
+    }
+  }
+}
+
+# create summary data table
+corr.pairs.dt <- data.table(corr.pairs)
+
+# add rownames
+colnames(corr.pairs.dt) <- c("gene1", "gene2", "correlation.coeff")
+
+# sort by decreasing correlation coefficient
+setorder(corr.pairs.dt, -correlation.coeff)
+
+# view results
+corr.pairs.dt
+```
+
+#### Problem 4 (b)
+
