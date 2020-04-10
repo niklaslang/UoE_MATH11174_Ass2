@@ -1205,7 +1205,7 @@ nki.cv.lasso1$lambda.min
 nki.cv.lasso1$cvm[which(nki.cv.lasso1$lambda == nki.cv.lasso1$lambda.min)]
 ```
 
-System run time on my machine was 0.013s.
+System run time on my machine was 0.013s (recorded with `system.time()`).
 
 Repeating the same procedure but this time penalising only to the gene expression variables, leaving all other covariates unpenalised.
 Reporting the results (λ and AUC):
@@ -1219,6 +1219,11 @@ nki.cv.lasso2$lambda.min
 nki.cv.lasso2$cvm[which(nki.cv.lasso2$lambda == nki.cv.lasso2$lambda.min)]
 ```
 
-System run time on my machine was 0.033s.
+System run time on my machine was 0.033s (recorded with `system.time()`).
 
 **Can you explain the difference between the two models in terms of AUC?**
+
+In 4 (d) we observed, that the AUC of the model that penalises all covariates is 0.79 and therefore roughly 0.05 higher than that of the model that only penalises the gene expression values (0.74).
+In 4 (c) we have shown that PC1 and PC2 of of the gene expression values are not significantly associated with complications after adjusting for confounders, whereas PC3 is significantly associated with complications.
+However, 4 (c) also revealed that when adjusting PC1, PC2 or PC3, all confounders except age were not significantly associated with complications either.
+This suggests, that they are not the best predictors by themselves and explains why excluding the confounders from the LASSO penalty yields worse results (in terms of AUC) compared to the model where the lasso penalty is applied to all variables.
