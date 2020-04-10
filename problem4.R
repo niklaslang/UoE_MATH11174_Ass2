@@ -1,4 +1,6 @@
 library(data.table)
+library(glmnet)
+library(caret)
 
 ### (a) ###
 
@@ -112,4 +114,51 @@ coef(summary(PC3.adjusted.model))[-1,c(1,4)]
 
 # Justify the difference in results between unadjusted and adjusted models
 
+### (d) ###
+
+# Fitting a lasso model to predict the binary outcome using all available predictors, 
+# learning the optimal penalty parameter that maximises the AUC
+
+prepare.glmnet <- function(data, formula=~ .){
   
+  # create the design matrix to deal correctly with factor variables, 
+  # without losing rows containing NAs
+  old.opts <- options(na.action='na.pass')
+  x <- model.matrix(formula, data)
+  options(old.opts)
+  
+  # remove the intercept column, as glmnet will add one by default 
+  x <- x[, -match("(Intercept)", colnames(x))]
+  return(x)
+}
+
+# transforming the data
+# predictors
+x.nki.dt <- prepare.glmnet(nki.dt[,!c("PC1","PC2","PC3")], ~ . - Event) # exclude the outcome
+# outcome
+y.nki.dt <- nki.dt$Event
+# set.seed
+set.seed(1)
+
+# fitting a lasso model and learning by cross-validation the penalty parameter λ that maximizes the AUC
+# reporting run time
+system.time(nki.cv.lasso1 <- cv.glmnet(x.nki.dt, y.nki.dt, family="binomial", type.measure="auc"))
+
+# penalty parameters λ that maximizes the AUC
+nki.cv.lasso1$lambda.min
+
+# max AUC
+nki.cv.lasso1$cvm[which(nki.cv.lasso1$lambda == nki.cv.lasso1$lambda.min)]
+
+# Repeat the same procedure but this time penalising only to the gene expression variables, 
+# leaving all other covariates unpenalised 
+# reporting run time
+system.time(nki.cv.lasso2 <- cv.glmnet(x.nki.dt, y.nki.dt, penalty.factor = c( rep(0, 5), rep(1,71)),
+                          family="binomial", type.measure="auc"))
+
+# penalty parameters λ that maximizes the AUC
+nki.cv.lasso2$lambda.min
+# max AUC
+nki.cv.lasso2$cvm[which(nki.cv.lasso2$lambda == nki.cv.lasso2$lambda.min)]
+
+# Can you explain the difference between the two models in terms of AUC? 
